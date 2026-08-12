@@ -41,6 +41,24 @@
     document.getElementById('reviewTo').addEventListener('change', APP.ui.updateReviewAvailable);
     document.getElementById('startReviewBtn').addEventListener('click', APP.ui.startReviewSession);
 
+    // Typing in the custom count auto-selects the "Enter a number" radio.
+    var customInput = document.getElementById('reviewCustomCount');
+    if (customInput) {
+      customInput.addEventListener('focus', function () {
+        var r = document.querySelector('input[name="reviewCountMode"][value="custom"]');
+        if (r) { r.checked = true; }
+        document.getElementById('reviewCountError').hidden = true;
+      });
+      customInput.addEventListener('input', function () {
+        document.getElementById('reviewCountError').hidden = true;
+      });
+    }
+    document.querySelectorAll('input[name="reviewCountMode"]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        document.getElementById('reviewCountError').hidden = true;
+      });
+    });
+
     // Mastered toggle: syncs to persistent progress on change.
     var mInput = document.getElementById('masteredInput');
     if (mInput) {

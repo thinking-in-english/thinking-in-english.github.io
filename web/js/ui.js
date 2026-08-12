@@ -180,13 +180,12 @@ APP.ui = (function () {
     APP.csel.setOptions('reviewFromSel', 'reviewFrom', options, first);
     APP.csel.setOptions('reviewToSel', 'reviewTo', options, last);
 
-    APP.csel.setOptions('reviewCountSel', 'reviewCount', [
-      { value: '20', label: '20 questions' },
-      { value: '30', label: '30 questions' },
-      { value: '50', label: '50 questions' },
-      { value: '100', label: '100 questions' },
-      { value: 'all', label: 'All questions' }
-    ], String(APP.config.defaultReviewCount));
+    // Reset count controls to defaults.
+    var customRadio = document.querySelector('input[name="reviewCountMode"][value="custom"]');
+    if (customRadio) { customRadio.checked = true; }
+    var customInput = document.getElementById('reviewCustomCount');
+    if (customInput) { customInput.value = String(APP.config.defaultReviewCount); }
+    document.getElementById('reviewCountError').hidden = true;
 
     updateReviewAvailable();
     showScreen('review');
@@ -214,8 +213,8 @@ APP.ui = (function () {
   function startReviewSession() {
     var from = parseInt(document.getElementById('reviewFrom').value, 10);
     var to = parseInt(document.getElementById('reviewTo').value, 10);
-    var countRaw = document.getElementById('reviewCount').value;
-    var count = countRaw === 'all' ? 'all' : parseInt(countRaw, 10);
+    var errorEl = document.getElementById('reviewCountError');
+    errorEl.hidden = true;
 
     var pool = APP.utils.getQuestionsFromLessonRange(APP.state.lessons, from, to);
     if (!APP.progress.getIncludeMastered()) {
@@ -229,6 +228,30 @@ APP.ui = (function () {
       });
       return;
     }
+
+    var mode = (document.querySelector('input[name="reviewCountMode"]:checked') || {}).value || 'custom';
+    var count;
+    if (mode === 'all') {
+      count = 'all';
+    } else {
+      var input = document.getElementById('reviewCustomCount');
+      var n = parseInt(input.value, 10);
+      if (!n || n < 1) {
+        errorEl.textContent = 'Please enter a number of 1 or more.';
+        errorEl.hidden = false;
+        input.focus();
+        return;
+      }
+      if (n > pool.length) {
+        errorEl.textContent = 'Only ' + pool.length + ' question' + (pool.length === 1 ? '' : 's') +
+          ' available. Enter a smaller number or pick "All questions".';
+        errorEl.hidden = false;
+        input.focus();
+        return;
+      }
+      count = n;
+    }
+
     var questions = APP.utils.getRandomQuestions(pool, count);
     beginSession({
       mode: 'review',

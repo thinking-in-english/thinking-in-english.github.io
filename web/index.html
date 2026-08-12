@@ -89,16 +89,23 @@
           <div class="available-line">
             Available questions: <strong id="reviewAvailable">0</strong>
           </div>
-          <label class="field">
-            <span class="field-label">Number of questions</span>
-            <div class="csel" id="reviewCountSel">
-              <button type="button" class="csel-trigger">
-                <span class="csel-value"></span>
-                <span class="csel-caret">▾</span>
-              </button>
-              <input type="hidden" id="reviewCount">
+          <div class="field">
+            <span class="field-label">How many questions?</span>
+            <div class="radio-group" id="reviewCountGroup">
+              <label class="radio-row" data-radio="custom">
+                <input type="radio" name="reviewCountMode" value="custom" checked>
+                <span class="radio-check" aria-hidden="true"></span>
+                <span class="radio-text">Enter a number</span>
+                <input type="number" id="reviewCustomCount" class="radio-input" min="1" value="20" inputmode="numeric">
+              </label>
+              <label class="radio-row" data-radio="all">
+                <input type="radio" name="reviewCountMode" value="all">
+                <span class="radio-check" aria-hidden="true"></span>
+                <span class="radio-text">All questions</span>
+              </label>
             </div>
-          </label>
+            <p class="field-error" id="reviewCountError" hidden></p>
+          </div>
           <button class="btn btn-primary btn-block" id="startReviewBtn">Start Review</button>
         </div>
       </section>
