@@ -158,6 +158,9 @@
       case 'back-to-lessons':
         APP.ui.renderLessons();
         break;
+      case 'back-to-review':
+        APP.ui.renderReviewSetup();
+        break;
     }
   }
 

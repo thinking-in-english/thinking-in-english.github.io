@@ -45,15 +45,32 @@ APP.ui = (function () {
 
   function updateBackButton() {
     var back = document.getElementById('backBtn');
-    var canGoBack = navStack.length > 0 && currentScreen !== 'loading' && currentScreen !== 'error';
-    back.hidden = !canGoBack;
+    if (currentScreen === 'home' || currentScreen === 'loading' || currentScreen === 'error') {
+      back.hidden = true;
+      return;
+    }
+    back.hidden = false;
+    // Top-level mode entry screens: single Home button (clear nav history).
+    if (currentScreen === 'lessons' || currentScreen === 'review' || currentScreen === 'complete') {
+      back.innerHTML = '🏠';
+      back.setAttribute('aria-label', 'Home');
+    } else {
+      back.innerHTML = '&#8592;';
+      back.setAttribute('aria-label', 'Back');
+    }
   }
 
   /**
-   * Back navigation. Confirms before abandoning an active session (section 39).
+   * Back navigation. From top-level mode screens (lessons / review) always goes
+   * Home so the button always feels correct even if the history is polluted
+   * (e.g. after "Back to Lessons" from the completion screen). Confirms before
+   * abandoning an active session (section 39).
    */
   function goBack() {
-    if (!navStack.length) { return; }
+    if (currentScreen === 'lessons' || currentScreen === 'review' || currentScreen === 'complete') {
+      goHome();
+      return;
+    }
     if (currentScreen === 'session') {
       APP.modal.confirm({
         icon: '👋',
@@ -65,11 +82,16 @@ APP.ui = (function () {
       }).then(function (ok) {
         if (!ok) { return; }
         endSessionCleanup();
-        var prev = navStack.pop();
-        showScreen(prev, false);
+        if (navStack.length) {
+          var prev = navStack.pop();
+          showScreen(prev, false);
+        } else {
+          goHome();
+        }
       });
       return;
     }
+    if (!navStack.length) { goHome(); return; }
     var prev = navStack.pop();
     showScreen(prev, false);
   }
@@ -434,6 +456,18 @@ APP.ui = (function () {
     });
     document.getElementById('completeStats').innerHTML =
       '<span class="stat-pill">✅ Newly mastered: ' + got + '</span>';
+
+    // Adapt the secondary button to where the user came from.
+    var secondary = document.getElementById('completeSecondaryBtn');
+    if (secondary) {
+      if (s.mode === 'review') {
+        secondary.textContent = 'Back to Review';
+        secondary.dataset.action = 'back-to-review';
+      } else {
+        secondary.textContent = 'Back to Lessons';
+        secondary.dataset.action = 'back-to-lessons';
+      }
+    }
 
     // Keep the finished session available for "Practice Again".
     APP.state.lastSession = { mode: s.mode, title: s.title, sourceQuestions: s.questions.slice() };
