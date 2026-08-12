@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>English Reflex — Speaking &amp; Shadowing Practice</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <header class="topbar" id="topbar">
+      <button class="icon-btn" id="backBtn" aria-label="Back" hidden>&#8592;</button>
+      <div class="brand">ENGLISH&nbsp;REFLEX</div>
+      <div class="topbar-spacer"></div>
+    </header>
+
+    <main class="screens">
+
+      <section class="screen" id="screen-loading" data-screen="loading">
+        <div class="center-block">
+          <div class="spinner" aria-hidden="true"></div>
+          <p class="muted" id="loadingText">Loading lessons…</p>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-error" data-screen="error" hidden>
+        <div class="center-block">
+          <p class="error-title" id="errorText">Unable to load lessons.</p>
+          <button class="btn btn-primary" id="retryBtn">Retry</button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-home" data-screen="home" hidden>
+        <div class="hero">
+          <h1 class="hero-title">ENGLISH REFLEX</h1>
+          <p class="hero-sub">Speaking &amp; Shadowing Practice</p>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-card" data-action="go-practice-lessons">
+            <span class="mode-emoji">🗣️</span>
+            <span class="mode-name">Practice by Lesson</span>
+            <span class="mode-desc">Practice every question in one lesson</span>
+          </button>
+          <button class="mode-card" data-action="go-review-setup">
+            <span class="mode-emoji">🔀</span>
+            <span class="mode-name">Review Multiple Lessons</span>
+            <span class="mode-desc">Mix questions from a range of lessons</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-lessons" data-screen="lessons" hidden>
+        <h2 class="screen-title">Practice by Lesson</h2>
+        <div class="lesson-list" id="lessonList"></div>
+      </section>
+
+      <section class="screen" id="screen-review" data-screen="review" hidden>
+        <h2 class="screen-title">Review Multiple Lessons</h2>
+        <div class="form-card">
+          <label class="field">
+            <span class="field-label">From</span>
+            <select id="reviewFrom" class="select"></select>
+          </label>
+          <label class="field">
+            <span class="field-label">To</span>
+            <select id="reviewTo" class="select"></select>
+          </label>
+          <div class="available-line">
+            Available questions: <strong id="reviewAvailable">0</strong>
+          </div>
+          <label class="field">
+            <span class="field-label">Number of questions</span>
+            <select id="reviewCount" class="select">
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="all">All questions</option>
+            </select>
+          </label>
+          <button class="btn btn-primary btn-block" id="startReviewBtn">Start Review</button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-session" data-screen="session" hidden>
+        <div class="session-head">
+          <div class="progress-text" id="progressText">Question 1 / 1</div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+
+        <div class="flashcard" id="flashcard">
+          <p class="vi-prompt" id="viPrompt"></p>
+
+          <div id="preCheckBlock">
+            <div class="control-row">
+              <button class="btn btn-soft" data-action="speak-check" id="speakCheckBtn">🎤 Speak &amp; Check</button>
+            </div>
+            <div class="sr-result" id="preCheckResult" hidden></div>
+            <p class="warn-note" id="preCheckWarn" hidden>Speech recognition is not supported on this browser.</p>
+          </div>
+
+          <div id="answerBlock" hidden>
+            <div class="answer-divider"><span>English</span></div>
+            <p class="en-answer" id="enAnswer"></p>
+
+            <div class="control-row" id="ttsControls">
+              <button class="btn btn-soft" data-action="listen">🔊 Listen</button>
+              <button class="btn btn-soft" data-action="replay">🔁 Replay</button>
+            </div>
+            <p class="warn-note" id="ttsWarn" hidden>Text-to-speech is not available on this device.</p>
+
+            <div class="control-row" id="recControls">
+              <button class="btn btn-soft" data-action="record">🎙️ Record</button>
+              <button class="btn btn-danger" data-action="stop-record" hidden>⏹ Stop</button>
+              <button class="btn btn-soft" data-action="play-recording" hidden>▶️ Play My Recording</button>
+              <button class="btn btn-soft" data-action="record-again" hidden>🔄 Record Again</button>
+            </div>
+            <p class="rec-status" id="recStatus" hidden>🔴 Recording…</p>
+            <p class="warn-note" id="recWarn" hidden>Voice recording is not available on this device.</p>
+
+            <div class="control-row" id="srControls">
+              <button class="btn btn-soft" data-action="check-speech">🎧 Check My Speech</button>
+            </div>
+            <div class="sr-result" id="srResult" hidden></div>
+            <p class="warn-note" id="srWarn" hidden>Speech recognition is not supported on this browser.</p>
+
+            <div class="control-row assess-row">
+              <button class="btn btn-outline" data-action="got-it">Got it</button>
+              <button class="btn btn-outline" data-action="need-practice">Need more practice</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="session-foot">
+          <button class="btn btn-primary btn-block" id="primaryActionBtn" data-action="show-answer">Show Answer</button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-complete" data-screen="complete" hidden>
+        <div class="center-block">
+          <div class="complete-emoji">🎉</div>
+          <h2 class="screen-title">Lesson Completed!</h2>
+          <p class="complete-count" id="completeCount">0 / 0 questions completed.</p>
+          <div class="complete-stats" id="completeStats"></div>
+          <button class="btn btn-primary btn-block" data-action="practice-again">Practice Again</button>
+          <button class="btn btn-outline btn-block" data-action="back-to-lessons">Back to Lessons</button>
+        </div>
+      </section>
+
+    </main>
+
+    <button class="fab" id="settingsFab" aria-label="Settings">⚙️</button>
+    <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+    <aside class="drawer" id="settingsDrawer" hidden>
+      <h3 class="drawer-title">Settings</h3>
+      <label class="field">
+        <span class="field-label">Accent</span>
+        <select id="accentSelect" class="select">
+          <option value="US">English (US)</option>
+          <option value="UK">English (UK)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Speed</span>
+        <select id="speedSelect" class="select">
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.25">1.25x</option>
+        </select>
+      </label>
+      <button class="btn btn-outline btn-block" id="closeDrawerBtn">Close</button>
+    </aside>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-icon" id="modalIcon">👋</div>
+        <h3 class="modal-title" id="modalTitle">Are you sure?</h3>
+        <p class="modal-msg" id="modalMsg"></p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="modalCancelBtn">Stay</button>
+          <button class="btn btn-primary" id="modalOkBtn">Leave</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/modal.js"></script>
+  <script src="js/tts.js"></script>
+  <script src="js/recorder.js"></script>
+  <script src="js/speech.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
