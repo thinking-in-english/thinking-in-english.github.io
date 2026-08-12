@@ -128,23 +128,29 @@ var SheetService = (function () {
       }
 
       seq++;
-      questions.push({
+      var q = {
         id: lessonId + '-' + pad_(seq, 3),
         vietnamese: vietnamese,
         english: english
-      });
+      };
+      if (cols.moreInfo !== -1) {
+        var info = cleanMultiline_(row[cols.moreInfo]);
+        if (info) { q.moreInfo = info; }
+      }
+      questions.push(q);
     }
 
     return questions;
   }
 
   /**
-   * Find the Vietnamese and English column indexes from the header row.
-   * Falls back to columns 0 and 1.
+   * Find the Vietnamese / English / More info column indexes from the header row.
+   * Falls back to columns 0 and 1 for Vietnamese and English.
    */
   function detectColumns_(header) {
     var vi = -1;
     var en = -1;
+    var moreInfo = -1;
     for (var c = 0; c < header.length; c++) {
       var h = String(header[c] || '').toLowerCase();
       if (vi === -1 && (h.indexOf('viet') !== -1 || h.indexOf('việt') !== -1 || h.indexOf('vn') !== -1)) {
@@ -153,10 +159,13 @@ var SheetService = (function () {
       if (en === -1 && (h.indexOf('eng') !== -1 || h.indexOf('anh') !== -1)) {
         en = c;
       }
+      if (moreInfo === -1 && (h.indexOf('more info') !== -1 || h.indexOf('note') !== -1 || h.indexOf('info') !== -1 || h.indexOf('chú thích') !== -1 || h.indexOf('ghi chú') !== -1)) {
+        moreInfo = c;
+      }
     }
     if (vi === -1) { vi = 0; }
     if (en === -1) { en = (vi === 1 ? 0 : 1); }
-    return { vi: vi, en: en };
+    return { vi: vi, en: en, moreInfo: moreInfo };
   }
 
   function cleanCell_(value) {
@@ -164,6 +173,18 @@ var SheetService = (function () {
       return '';
     }
     return String(value).replace(/\s+/g, ' ').trim();
+  }
+
+  /** Like cleanCell_ but keeps newlines so multi-line notes render correctly. */
+  function cleanMultiline_(value) {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    return String(value)
+      .replace(/\r\n?/g, '\n')      // normalize line breaks
+      .replace(/[ \t]+/g, ' ')      // collapse inline whitespace only
+      .replace(/\n{3,}/g, '\n\n')   // cap consecutive blank lines
+      .trim();
   }
 
   function parseLessonNumber_(name) {

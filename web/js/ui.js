@@ -248,6 +248,10 @@ APP.ui = (function () {
     document.getElementById('recWarn').hidden = APP.recorder.isSupported();
     document.getElementById('srWarn').hidden = APP.speech.isSupported();
 
+    // More info button only when this question has extra content.
+    var q = currentQuestion();
+    document.getElementById('moreInfoControls').hidden = !(q && q.moreInfo);
+
     var primary = document.getElementById('primaryActionBtn');
     primary.textContent = isLastQuestion() ? 'Finish' : 'Next →';
     primary.dataset.action = 'next';
@@ -511,6 +515,23 @@ APP.ui = (function () {
     });
   }
 
+  /**
+   * Show the More info popup for the current question. Content from the sheet
+   * is escaped (no arbitrary HTML) but newlines are preserved as <br>.
+   */
+  function showMoreInfo() {
+    var q = currentQuestion();
+    if (!q || !q.moreInfo) { return; }
+    var html = escapeHtml(q.moreInfo).replace(/\n/g, '<br>');
+    APP.modal.notice({
+      icon: '💡',
+      title: 'More info',
+      html: html,
+      scrollable: true,
+      okLabel: 'Close'
+    });
+  }
+
   return {
     showScreen: showScreen,
     goBack: goBack,
@@ -528,6 +549,7 @@ APP.ui = (function () {
     onRecordStart: onRecordStart,
     onRecordStop: onRecordStop,
     onCheckSpeech: onCheckSpeech,
-    onSpeakCheck: onSpeakCheck
+    onSpeakCheck: onSpeakCheck,
+    showMoreInfo: showMoreInfo
   };
 })();

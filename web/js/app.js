@@ -115,6 +115,11 @@
         APP.ui.onCheckSpeech();
         break;
 
+      // More info popup (shown only when this question has extra content)
+      case 'more-info':
+        APP.ui.showMoreInfo();
+        break;
+
       // Self assessment (temporary session state only)
       case 'got-it':
         APP.ui.recordAssessment('got');

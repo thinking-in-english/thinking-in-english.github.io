@@ -22,7 +22,12 @@ APP.modal = (function () {
     var e = els();
     e.icon.textContent = opts.icon || (mode === 'confirm' ? '❓' : 'ℹ️');
     e.title.textContent = opts.title || (mode === 'confirm' ? 'Are you sure?' : 'Heads up');
-    e.msg.textContent = opts.message || '';
+    if (opts.html) {
+      e.msg.innerHTML = opts.html;
+    } else {
+      e.msg.textContent = opts.message || '';
+    }
+    e.msg.className = 'modal-msg' + (opts.scrollable ? ' scrollable' : '');
     e.ok.textContent = opts.okLabel || 'OK';
     e.cancel.textContent = opts.cancelLabel || 'Cancel';
     e.ok.className = 'btn ' + (opts.danger ? 'btn-danger' : 'btn-primary');
