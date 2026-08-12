@@ -96,11 +96,20 @@
 
       // TTS
       case 'listen':
-      case 'replay':
         if (q) {
           APP.tts.speakText(q.english, {
             accent: APP.state.settings.accent,
-            rate: APP.state.settings.rate
+            rate: APP.state.settings.rate,
+            voiceURI: APP.state.settings.voiceURI
+          });
+        }
+        break;
+      case 'listen-slow':
+        if (q) {
+          APP.tts.speakText(q.english, {
+            accent: APP.state.settings.accent,
+            rate: 0.75,
+            voiceURI: APP.state.settings.voiceURI
           });
         }
         break;
@@ -155,11 +164,15 @@
     var closeBtn = document.getElementById('closeDrawerBtn');
     var accent = document.getElementById('accentSelect');
     var speed = document.getElementById('speedSelect');
+    var voice = document.getElementById('voiceSelect');
 
     accent.value = APP.state.settings.accent;
     speed.value = String(APP.state.settings.rate);
 
-    function open() { drawer.hidden = false; backdrop.hidden = false; }
+    function open() {
+      populateVoices();  // voices load asynchronously; refresh each time
+      drawer.hidden = false; backdrop.hidden = false;
+    }
     function close() { drawer.hidden = true; backdrop.hidden = true; }
 
     fab.addEventListener('click', open);
@@ -168,10 +181,31 @@
 
     accent.addEventListener('change', function () {
       APP.state.settings.accent = accent.value;
+      APP.progress.setAccent(accent.value);
     });
     speed.addEventListener('change', function () {
-      APP.state.settings.rate = parseFloat(speed.value);
+      var r = parseFloat(speed.value);
+      APP.state.settings.rate = r;
+      APP.progress.setRate(r);
     });
+    voice.addEventListener('change', function () {
+      var v = voice.value || null;
+      APP.state.settings.voiceURI = v;
+      APP.progress.setVoiceURI(v);
+    });
+
+    function populateVoices() {
+      var voices = APP.tts.listEnglishVoices();
+      var current = APP.state.settings.voiceURI || '';
+      var currentStillAvailable = current && voices.some(function (v) { return v.voiceURI === current; });
+      voice.innerHTML = '<option value="">Auto (best available)</option>' +
+        voices.map(function (v) {
+          var sel = v.voiceURI === current ? ' selected' : '';
+          var label = v.name + ' (' + v.lang + ')';
+          return '<option value="' + v.voiceURI.replace(/"/g, '&quot;') + '"' + sel + '>' + label + '</option>';
+        }).join('');
+      if (!currentStillAvailable) { voice.value = ''; }
+    }
 
     document.getElementById('resetProgressBtn').addEventListener('click', function () {
       APP.modal.confirm({

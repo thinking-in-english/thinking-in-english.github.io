@@ -15,7 +15,12 @@ APP.progress = (function () {
   var PREFS_KEY = 'englishReflex.prefs.v1';
 
   var mastered = loadJSON(MASTERED_KEY, {});
-  var prefs = Object.assign({ includeMastered: false }, loadJSON(PREFS_KEY, {}));
+  var prefs = Object.assign({
+    includeMastered: false,
+    accent: 'US',
+    rate: 1.0,
+    voiceURI: null
+  }, loadJSON(PREFS_KEY, {}));
 
   function loadJSON(key, fallback) {
     try {
@@ -63,6 +68,15 @@ APP.progress = (function () {
     save(PREFS_KEY, prefs);
   }
 
+  function getAccent() { return prefs.accent || 'US'; }
+  function setAccent(v) { prefs.accent = v; save(PREFS_KEY, prefs); }
+
+  function getRate() { return typeof prefs.rate === 'number' ? prefs.rate : 1.0; }
+  function setRate(v) { prefs.rate = v; save(PREFS_KEY, prefs); }
+
+  function getVoiceURI() { return prefs.voiceURI || null; }
+  function setVoiceURI(v) { prefs.voiceURI = v || null; save(PREFS_KEY, prefs); }
+
   return {
     isMastered: isMastered,
     markMastered: markMastered,
@@ -71,6 +85,12 @@ APP.progress = (function () {
     filterOutMastered: filterOutMastered,
     resetAll: resetAll,
     getIncludeMastered: getIncludeMastered,
-    setIncludeMastered: setIncludeMastered
+    setIncludeMastered: setIncludeMastered,
+    getAccent: getAccent,
+    setAccent: setAccent,
+    getRate: getRate,
+    setRate: setRate,
+    getVoiceURI: getVoiceURI,
+    setVoiceURI: setVoiceURI
   };
 })();

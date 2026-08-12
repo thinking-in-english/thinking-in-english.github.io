@@ -16,20 +16,13 @@ APP.state = {
   loadedAt: null,
 
   // Active session (null when not practicing).
-  // {
-  //   mode: 'lesson' | 'review',
-  //   title: string,
-  //   questions: [{id, vietnamese, english}],  // already shuffled
-  //   index: 0,
-  //   revealed: bool,
-  //   results: { [questionId]: 'got' | 'practice' }
-  // }
   session: null,
 
-  // Settings kept for the current session.
+  // Settings kept for the current session — restored from persisted prefs.
   settings: {
-    accent: APP.config.defaultAccent,
-    rate: APP.config.defaultRate
+    accent: APP.progress ? APP.progress.getAccent() : APP.config.defaultAccent,
+    rate: APP.progress ? APP.progress.getRate() : APP.config.defaultRate,
+    voiceURI: APP.progress ? APP.progress.getVoiceURI() : null
   }
 };
 

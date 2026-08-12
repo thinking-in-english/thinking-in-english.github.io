@@ -134,7 +134,7 @@
 
             <div class="control-row" id="ttsControls">
               <button class="btn btn-soft" data-action="listen">🔊 Listen</button>
-              <button class="btn btn-soft" data-action="replay">🔁 Replay</button>
+              <button class="btn btn-soft" data-action="listen-slow">🐢 Slow (0.75x)</button>
             </div>
             <p class="warn-note" id="ttsWarn" hidden>Text-to-speech is not available on this device.</p>
 
@@ -195,6 +195,13 @@
           <option value="1" selected>1.0x</option>
           <option value="1.25">1.25x</option>
         </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Voice</span>
+        <select id="voiceSelect" class="select">
+          <option value="">Auto (best available)</option>
+        </select>
+        <span class="field-hint" id="voiceHint">Tip: iOS → Settings → Accessibility → Spoken Content → Voices → download an "Enhanced" or "Premium" English voice for a more natural sound.</span>
       </label>
       <button class="btn btn-outline btn-block" id="resetProgressBtn">🗑️ Reset progress</button>
       <button class="btn btn-outline btn-block" id="closeDrawerBtn">Close</button>
