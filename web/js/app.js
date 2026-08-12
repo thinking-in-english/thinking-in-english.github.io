@@ -217,7 +217,7 @@
       voice.innerHTML = '<option value="">Auto (best available)</option>' +
         voices.map(function (v) {
           var sel = v.voiceURI === current ? ' selected' : '';
-          var label = v.name + ' (' + v.lang + ')';
+          var label = APP.tts.getVoiceLabel(v);
           return '<option value="' + v.voiceURI.replace(/"/g, '&quot;') + '"' + sel + '>' + label + '</option>';
         }).join('');
       if (!currentStillAvailable) { voice.value = ''; }
