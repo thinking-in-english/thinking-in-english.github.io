@@ -68,11 +68,23 @@
         <div class="form-card">
           <label class="field">
             <span class="field-label">From</span>
-            <select id="reviewFrom" class="select"></select>
+            <div class="csel" id="reviewFromSel">
+              <button type="button" class="csel-trigger">
+                <span class="csel-value"></span>
+                <span class="csel-caret">▾</span>
+              </button>
+              <input type="hidden" id="reviewFrom">
+            </div>
           </label>
           <label class="field">
             <span class="field-label">To</span>
-            <select id="reviewTo" class="select"></select>
+            <div class="csel" id="reviewToSel">
+              <button type="button" class="csel-trigger">
+                <span class="csel-value"></span>
+                <span class="csel-caret">▾</span>
+              </button>
+              <input type="hidden" id="reviewTo">
+            </div>
           </label>
           <div class="available-line">
             Available questions: <strong id="reviewAvailable">0</strong>
@@ -136,10 +148,13 @@
             <p class="warn-note" id="recWarn" hidden>Voice recording is not available on this device.</p>
 
             <div class="control-row assess-row">
-              <button class="btn btn-outline mastered-btn" data-action="toggle-mastered" id="masteredBtn">
-                <span class="mastered-icon">🤍</span>
-                <span class="mastered-label">Mark as mastered</span>
-              </button>
+              <label class="toggle-row mastered-row">
+                <span class="toggle-label">
+                  <span class="toggle-title">Mastered</span>
+                </span>
+                <input type="checkbox" id="masteredInput" class="toggle-input">
+                <span class="toggle-visual" aria-hidden="true"></span>
+              </label>
             </div>
           </div>
         </div>
@@ -205,6 +220,7 @@
   <script src="js/utils.js"></script>
   <script src="js/data.js"></script>
   <script src="js/modal.js"></script>
+  <script src="js/csel.js"></script>
   <script src="js/tts.js"></script>
   <script src="js/recorder.js"></script>
   <script src="js/speech.js"></script>

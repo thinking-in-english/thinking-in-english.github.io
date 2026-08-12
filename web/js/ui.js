@@ -168,21 +168,18 @@ APP.ui = (function () {
   // ---- Review Multiple Lessons --------------------------------------------
 
   function renderReviewSetup() {
-    var fromSel = document.getElementById('reviewFrom');
-    var toSel = document.getElementById('reviewTo');
-    fromSel.innerHTML = '';
-    toSel.innerHTML = '';
-
-    APP.state.lessons.forEach(function (lesson) {
-      var label = 'Lesson ' + lesson.lessonNumber + ' — ' + lesson.title;
-      fromSel.appendChild(optionEl(lesson.lessonNumber, label));
-      toSel.appendChild(optionEl(lesson.lessonNumber, label));
+    var options = APP.state.lessons.map(function (lesson) {
+      return {
+        value: lesson.lessonNumber,
+        label: 'Lesson ' + lesson.lessonNumber + ' — ' + lesson.title
+      };
     });
+    var first = APP.state.lessons.length ? APP.state.lessons[0].lessonNumber : 0;
+    var last = APP.state.lessons.length ? APP.state.lessons[APP.state.lessons.length - 1].lessonNumber : 0;
 
-    if (APP.state.lessons.length) {
-      fromSel.value = APP.state.lessons[0].lessonNumber;
-      toSel.value = APP.state.lessons[APP.state.lessons.length - 1].lessonNumber;
-    }
+    APP.csel.setOptions('reviewFromSel', 'reviewFrom', options, first);
+    APP.csel.setOptions('reviewToSel', 'reviewTo', options, last);
+
     document.getElementById('reviewCount').value = String(APP.config.defaultReviewCount);
 
     updateReviewAvailable();
@@ -350,7 +347,15 @@ APP.ui = (function () {
     var q = currentQuestion();
     if (!q) { return false; }
     var nowMastered = !APP.progress.isMastered(q.id);
-    if (nowMastered) {
+    setMasteredForCurrent(nowMastered);
+    return nowMastered;
+  }
+
+  /** Apply a mastered value to the current question and sync UI + storage. */
+  function setMasteredForCurrent(on) {
+    var q = currentQuestion();
+    if (!q) { return; }
+    if (on) {
       APP.progress.markMastered(q.id);
       APP.state.session.results[q.id] = 'got';
     } else {
@@ -358,17 +363,13 @@ APP.ui = (function () {
       delete APP.state.session.results[q.id];
     }
     updateMasteredButton();
-    return nowMastered;
   }
 
   function updateMasteredButton() {
-    var btn = document.getElementById('masteredBtn');
-    if (!btn) { return; }
+    var input = document.getElementById('masteredInput');
+    if (!input) { return; }
     var q = currentQuestion();
-    var on = q ? APP.progress.isMastered(q.id) : false;
-    btn.classList.toggle('is-mastered', on);
-    btn.querySelector('.mastered-icon').textContent = on ? '✅' : '🤍';
-    btn.querySelector('.mastered-label').textContent = on ? 'Mastered · tap to unmark' : 'Mark as mastered';
+    input.checked = q ? APP.progress.isMastered(q.id) : false;
   }
 
   /** Expand / collapse the Vietnamese prompt after the answer is revealed. */
@@ -601,6 +602,7 @@ APP.ui = (function () {
     nextQuestion: nextQuestion,
     recordAssessment: recordAssessment,
     toggleMastered: toggleMastered,
+    setMasteredForCurrent: setMasteredForCurrent,
     toggleViPrompt: toggleViPrompt,
     practiceAgain: practiceAgain,
     endSessionCleanup: endSessionCleanup,

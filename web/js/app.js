@@ -41,6 +41,14 @@
     document.getElementById('reviewTo').addEventListener('change', APP.ui.updateReviewAvailable);
     document.getElementById('startReviewBtn').addEventListener('click', APP.ui.startReviewSession);
 
+    // Mastered toggle: syncs to persistent progress on change.
+    var mInput = document.getElementById('masteredInput');
+    if (mInput) {
+      mInput.addEventListener('change', function () {
+        APP.ui.setMasteredForCurrent(mInput.checked);
+      });
+    }
+
     // Warn before accidental page unload during a session.
     window.addEventListener('beforeunload', function (e) {
       if (APP.state.session && currentScreenIsSession()) {
@@ -114,12 +122,6 @@
       // More info popup (shown only when this question has extra content)
       case 'more-info':
         APP.ui.showMoreInfo();
-        break;
-
-      // Self assessment: one toggle. Mastered questions are hidden from future
-      // sessions unless "Include mastered questions" is on at Home.
-      case 'toggle-mastered':
-        APP.ui.toggleMastered();
         break;
 
       // Show / hide the Vietnamese prompt after the answer is revealed.
