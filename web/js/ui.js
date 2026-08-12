@@ -292,8 +292,8 @@ APP.ui = (function () {
       else if (s.results[id] === 'practice') { practice++; }
     });
     document.getElementById('completeStats').innerHTML =
-      '<span class="stat-pill">✅ Đã thuộc: ' + got + '</span>' +
-      '<span class="stat-pill">🔄 Cần luyện lại: ' + practice + '</span>';
+      '<span class="stat-pill">✅ Mastered: ' + got + '</span>' +
+      '<span class="stat-pill">🔄 Keep practicing: ' + practice + '</span>';
 
     // Keep the finished session available for "Practice Again".
     APP.state.lastSession = { mode: s.mode, title: s.title, sourceQuestions: s.questions.slice() };

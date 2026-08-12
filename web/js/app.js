@@ -118,11 +118,11 @@
       // Self assessment (temporary session state only)
       case 'got-it':
         APP.ui.recordAssessment('got');
-        flash(target, '✅ Đã đánh dấu');
+        flash(target, '✅ Marked as mastered');
         break;
       case 'need-practice':
         APP.ui.recordAssessment('practice');
-        flash(target, '🔄 Đã đánh dấu');
+        flash(target, '🔄 Marked for practice');
         break;
 
       // Completion
