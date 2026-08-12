@@ -180,7 +180,13 @@ APP.ui = (function () {
     APP.csel.setOptions('reviewFromSel', 'reviewFrom', options, first);
     APP.csel.setOptions('reviewToSel', 'reviewTo', options, last);
 
-    document.getElementById('reviewCount').value = String(APP.config.defaultReviewCount);
+    APP.csel.setOptions('reviewCountSel', 'reviewCount', [
+      { value: '20', label: '20 questions' },
+      { value: '30', label: '30 questions' },
+      { value: '50', label: '50 questions' },
+      { value: '100', label: '100 questions' },
+      { value: 'all', label: 'All questions' }
+    ], String(APP.config.defaultReviewCount));
 
     updateReviewAvailable();
     showScreen('review');

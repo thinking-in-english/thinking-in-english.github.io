@@ -263,9 +263,9 @@ body {
 }
 
 .control-row {
-  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 6px;
+  display: flex; flex-direction: column; gap: 10px; margin-top: 6px;
 }
-.control-row .btn { flex: 1 1 auto; min-width: 130px; }
+.control-row .btn { width: 100%; }
 .assess-row { margin-top: 14px; }
 
 .rec-status { text-align: center; color: var(--danger); font-weight: 700; margin: 4px 0 0; }

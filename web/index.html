@@ -91,13 +91,13 @@
           </div>
           <label class="field">
             <span class="field-label">Number of questions</span>
-            <select id="reviewCount" class="select">
-              <option value="20">20</option>
-              <option value="30">30</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="all">All questions</option>
-            </select>
+            <div class="csel" id="reviewCountSel">
+              <button type="button" class="csel-trigger">
+                <span class="csel-value"></span>
+                <span class="csel-caret">▾</span>
+              </button>
+              <input type="hidden" id="reviewCount">
+            </div>
           </label>
           <button class="btn btn-primary btn-block" id="startReviewBtn">Start Review</button>
         </div>
@@ -134,7 +134,6 @@
 
             <div class="control-row" id="ttsControls">
               <button class="btn btn-soft" data-action="listen">🔊 Listen</button>
-              <button class="btn btn-soft" data-action="listen-slow">🐢 Slow (0.75x)</button>
             </div>
             <p class="warn-note" id="ttsWarn" hidden>Text-to-speech is not available on this device.</p>
 

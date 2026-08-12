@@ -104,15 +104,6 @@
           });
         }
         break;
-      case 'listen-slow':
-        if (q) {
-          APP.tts.speakText(q.english, {
-            accent: APP.state.settings.accent,
-            rate: 0.75,
-            voiceURI: APP.state.settings.voiceURI
-          });
-        }
-        break;
 
       // Recording
       case 'record':
