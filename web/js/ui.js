@@ -382,16 +382,10 @@ APP.ui = (function () {
       cls = 'miss'; head = '✗ Keep practicing';
     }
     box.className = 'sr-result ' + cls;
-    var html =
+    box.innerHTML =
       '<div class="sr-head">' + head + '</div>' +
-      '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' expected words recognized.</div>';
-    if (r.missing.length) {
-      html += '<div>Missing word' + (r.missing.length > 1 ? 's' : '') + ': ' +
-              r.missing.map(function (w) { return '<code>' + escapeHtml(w) + '</code>'; }).join(', ') +
-              '</div>';
-    }
-    html += '<div class="muted" style="font-size:12px;margin-top:6px">Speech match only — not a pronunciation score.</div>';
-    box.innerHTML = html;
+      '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' expected words recognized.</div>' +
+      '<div class="muted" style="font-size:12px;margin-top:6px">Speech match only — not a pronunciation score.</div>';
   }
 
   // ---- Pre-reveal Speak & Check -------------------------------------------
