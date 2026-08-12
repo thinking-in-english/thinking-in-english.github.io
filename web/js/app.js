@@ -116,14 +116,15 @@
         APP.ui.showMoreInfo();
         break;
 
-      // Self assessment (temporary session state only)
-      case 'got-it':
-        APP.ui.recordAssessment('got');
-        flash(target, '✅ Mastered — hidden next time');
+      // Self assessment: one toggle. Mastered questions are hidden from future
+      // sessions unless "Include mastered questions" is on at Home.
+      case 'toggle-mastered':
+        APP.ui.toggleMastered();
         break;
-      case 'need-practice':
-        APP.ui.recordAssessment('practice');
-        flash(target, '🔄 Kept in the pool');
+
+      // Show / hide the Vietnamese prompt after the answer is revealed.
+      case 'toggle-vi':
+        APP.ui.toggleViPrompt();
         break;
 
       // Completion

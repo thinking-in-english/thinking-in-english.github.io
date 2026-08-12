@@ -48,12 +48,13 @@
             <span class="mode-desc">Mix questions from a range of lessons</span>
           </button>
         </div>
-        <label class="toggle-row" for="includeMasteredToggle">
+        <label class="toggle-row">
           <span class="toggle-label">
             <span class="toggle-title">Include mastered questions</span>
             <span class="toggle-sub">Off: skip questions you've marked as mastered.</span>
           </span>
-          <input type="checkbox" id="includeMasteredToggle" class="toggle-switch">
+          <input type="checkbox" id="includeMasteredToggle" class="toggle-input">
+          <span class="toggle-visual" aria-hidden="true"></span>
         </label>
       </section>
 
@@ -97,6 +98,10 @@
         </div>
 
         <div class="flashcard" id="flashcard">
+          <button type="button" class="vi-toggle" data-action="toggle-vi" id="viToggleBtn" hidden>
+            <span class="vi-toggle-caret">▾</span>
+            <span class="vi-toggle-label">Show question</span>
+          </button>
           <p class="vi-prompt" id="viPrompt"></p>
 
           <div id="preCheckBlock">
@@ -131,8 +136,10 @@
             <p class="warn-note" id="recWarn" hidden>Voice recording is not available on this device.</p>
 
             <div class="control-row assess-row">
-              <button class="btn btn-outline" data-action="got-it">✅ Mastered</button>
-              <button class="btn btn-outline" data-action="need-practice">🔄 Keep practicing</button>
+              <button class="btn btn-outline mastered-btn" data-action="toggle-mastered" id="masteredBtn">
+                <span class="mastered-icon">🤍</span>
+                <span class="mastered-label">Mark as mastered</span>
+              </button>
             </div>
           </div>
         </div>

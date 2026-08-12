@@ -129,19 +129,30 @@ body {
 .toggle-label { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .toggle-title { font-weight: 700; font-size: 15px; }
 .toggle-sub { font-size: 13px; color: var(--ink-soft); }
-.toggle-switch {
-  appearance: none; -webkit-appearance: none;
-  width: 46px; height: 26px; border-radius: 999px;
-  background: #cbd5e1; position: relative; cursor: pointer;
-  transition: background .15s ease; flex-shrink: 0;
+.toggle-input {
+  position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;
 }
-.toggle-switch::after {
+.toggle-visual {
+  position: relative; flex-shrink: 0;
+  width: 46px; height: 26px; border-radius: 999px;
+  background: #cbd5e1; transition: background .15s ease;
+  display: inline-block;
+}
+.toggle-visual::before {
   content: ""; position: absolute; top: 3px; left: 3px;
   width: 20px; height: 20px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
   transition: transform .15s ease;
 }
-.toggle-switch:checked { background: var(--primary); }
-.toggle-switch:checked::after { transform: translateX(20px); }
+.toggle-input:checked ~ .toggle-visual { background: var(--primary); }
+.toggle-input:checked ~ .toggle-visual::before { transform: translateX(20px); }
+.toggle-input:focus-visible ~ .toggle-visual { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ===== Mastered toggle button on flashcard ===== */
+.mastered-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.mastered-btn.is-mastered {
+  background: #dcfce7; color: #166534; border-color: #86efac;
+}
 
 /* ===== Forms ===== */
 .form-card { display: grid; gap: 16px; }
@@ -185,6 +196,24 @@ body {
   font-size: clamp(22px, 6vw, 30px); line-height: 1.35; font-weight: 700;
   text-align: center; margin: 0;
 }
+.vi-prompt.collapsed { display: none; }
+/* When the answer is revealed, the English is the focus — shrink the VN prompt. */
+.vi-prompt.subdued {
+  font-size: clamp(14px, 3.6vw, 17px);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* Small toggle above the answer that expands/collapses the VN prompt. */
+.vi-toggle {
+  align-self: center;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--card-2); border: 1px solid var(--line);
+  color: var(--ink-soft); font-size: 13px; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.vi-toggle-caret { transition: transform .15s ease; }
+.vi-toggle.expanded .vi-toggle-caret { transform: rotate(180deg); }
 .answer-divider {
   display: flex; align-items: center; gap: 12px; color: var(--muted);
   font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-top: 10px;

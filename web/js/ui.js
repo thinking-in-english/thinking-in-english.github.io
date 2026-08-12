@@ -31,6 +31,15 @@ APP.ui = (function () {
       navStack.push(currentScreen);
     }
     currentScreen = name;
+
+    // Re-sync home-screen widgets whenever we land here, so Back preserves state.
+    if (name === 'home') {
+      var toggle = document.getElementById('includeMasteredToggle');
+      if (toggle) { toggle.checked = APP.progress.getIncludeMastered(); }
+    }
+    // Settings FAB is only for Home — hide it elsewhere so it doesn't cover content.
+    var fab = document.getElementById('settingsFab');
+    if (fab) { fab.hidden = name !== 'home'; }
     updateBackButton();
   }
 
@@ -258,6 +267,9 @@ APP.ui = (function () {
       ((s.index) / total * 100) + '%';
 
     document.getElementById('viPrompt').textContent = q.vietnamese;
+    var viEl = document.getElementById('viPrompt');
+    viEl.classList.remove('collapsed', 'subdued');
+    document.getElementById('viToggleBtn').hidden = true;
     document.getElementById('enAnswer').textContent = q.english;
 
     // Reset to hidden-answer state.
@@ -278,6 +290,14 @@ APP.ui = (function () {
     s.revealed = true;
     document.getElementById('answerBlock').hidden = false;
     document.getElementById('preCheckBlock').hidden = true;
+    // Collapse VN prompt by default; user can expand via the toggle above.
+    // When expanded it stays subdued so the English answer keeps focus.
+    var viEl = document.getElementById('viPrompt');
+    viEl.classList.add('collapsed', 'subdued');
+    var vBtn = document.getElementById('viToggleBtn');
+    vBtn.hidden = false;
+    vBtn.classList.remove('expanded');
+    vBtn.querySelector('.vi-toggle-label').textContent = 'Show question';
 
     // TTS availability note (non-blocking).
     document.getElementById('ttsWarn').hidden = APP.tts.isSupported();
@@ -286,6 +306,9 @@ APP.ui = (function () {
     // More info button only when this question has extra content.
     var q = currentQuestion();
     document.getElementById('moreInfoControls').hidden = !(q && q.moreInfo);
+
+    // Sync mastered toggle to current state (persistent across sessions).
+    updateMasteredButton();
 
     var primary = document.getElementById('primaryActionBtn');
     primary.textContent = isLastQuestion() ? 'Finish' : 'Next →';
@@ -319,6 +342,44 @@ APP.ui = (function () {
     }
   }
 
+  /**
+   * Flip the Mastered state for the current question and refresh the button.
+   * @return {boolean} the new mastered state
+   */
+  function toggleMastered() {
+    var q = currentQuestion();
+    if (!q) { return false; }
+    var nowMastered = !APP.progress.isMastered(q.id);
+    if (nowMastered) {
+      APP.progress.markMastered(q.id);
+      APP.state.session.results[q.id] = 'got';
+    } else {
+      APP.progress.unmarkMastered(q.id);
+      delete APP.state.session.results[q.id];
+    }
+    updateMasteredButton();
+    return nowMastered;
+  }
+
+  function updateMasteredButton() {
+    var btn = document.getElementById('masteredBtn');
+    if (!btn) { return; }
+    var q = currentQuestion();
+    var on = q ? APP.progress.isMastered(q.id) : false;
+    btn.classList.toggle('is-mastered', on);
+    btn.querySelector('.mastered-icon').textContent = on ? '✅' : '🤍';
+    btn.querySelector('.mastered-label').textContent = on ? 'Mastered · tap to unmark' : 'Mark as mastered';
+  }
+
+  /** Expand / collapse the Vietnamese prompt after the answer is revealed. */
+  function toggleViPrompt() {
+    var vi = document.getElementById('viPrompt');
+    var btn = document.getElementById('viToggleBtn');
+    var collapsed = vi.classList.toggle('collapsed');
+    btn.classList.toggle('expanded', !collapsed);
+    btn.querySelector('.vi-toggle-label').textContent = collapsed ? 'Show question' : 'Hide question';
+  }
+
   // ---- Completion ----------------------------------------------------------
 
   function completeSession() {
@@ -329,14 +390,12 @@ APP.ui = (function () {
     document.getElementById('completeCount').textContent =
       total + ' / ' + total + ' questions completed.';
 
-    var got = 0, practice = 0;
+    var got = 0;
     Object.keys(s.results).forEach(function (id) {
       if (s.results[id] === 'got') { got++; }
-      else if (s.results[id] === 'practice') { practice++; }
     });
     document.getElementById('completeStats').innerHTML =
-      '<span class="stat-pill">✅ Mastered: ' + got + '</span>' +
-      '<span class="stat-pill">🔄 Keep practicing: ' + practice + '</span>';
+      '<span class="stat-pill">✅ Newly mastered: ' + got + '</span>';
 
     // Keep the finished session available for "Practice Again".
     APP.state.lastSession = { mode: s.mode, title: s.title, sourceQuestions: s.questions.slice() };
@@ -541,6 +600,8 @@ APP.ui = (function () {
     revealAnswer: revealAnswer,
     nextQuestion: nextQuestion,
     recordAssessment: recordAssessment,
+    toggleMastered: toggleMastered,
+    toggleViPrompt: toggleViPrompt,
     practiceAgain: practiceAgain,
     endSessionCleanup: endSessionCleanup,
     currentQuestion: currentQuestion,
