@@ -85,15 +85,36 @@ APP.ui = (function () {
     APP.state.lessons.forEach(function (lesson) {
       var btn = document.createElement('button');
       btn.className = 'lesson-item';
+      var include = APP.progress.getIncludeMastered();
+      var masteredCount = APP.progress.countMasteredIn(lesson.questions);
+      var practicable = include ? lesson.questionCount : lesson.questionCount - masteredCount;
       var empty = lesson.questionCount === 0;
+      var allDone = !empty && !include && practicable === 0;
       if (empty) { btn.setAttribute('disabled', 'disabled'); }
+
+      var badgeCls = empty ? ' zero' : (allDone ? ' done' : '');
+      var badgeText = empty
+        ? '0 questions'
+        : (allDone
+            ? '🎉 all mastered'
+            : (masteredCount > 0
+                ? practicable + ' / ' + lesson.questionCount + ' questions'
+                : lesson.questionCount + ' questions'));
+
+      var sub = empty
+        ? 'No practice questions yet'
+        : (allDone
+            ? 'Turn on "Include mastered" to review'
+            : (masteredCount > 0
+                ? masteredCount + ' mastered · tap to practice the rest'
+                : 'Tap to practice all questions'));
 
       btn.innerHTML =
         '<span class="lesson-main">' +
           '<span class="lesson-name">Lesson ' + lesson.lessonNumber + ' — ' + escapeHtml(lesson.title) + '</span>' +
-          '<span class="lesson-sub">' + (empty ? 'No practice questions yet' : 'Tap to practice all questions') + '</span>' +
+          '<span class="lesson-sub">' + sub + '</span>' +
         '</span>' +
-        '<span class="lesson-count' + (empty ? ' zero' : '') + '">' + lesson.questionCount + ' questions</span>';
+        '<span class="lesson-count' + badgeCls + '">' + badgeText + '</span>';
 
       if (!empty) {
         btn.addEventListener('click', function () { startLessonSession(lesson.lessonId); });
@@ -106,6 +127,7 @@ APP.ui = (function () {
 
   /**
    * Practice by Lesson: ALL questions, shuffled, no limit (sections 7, 46).
+   * When "Include mastered" is OFF, mastered questions are filtered out.
    */
   function startLessonSession(lessonId) {
     var lesson = APP.state.getLessonById(lessonId);
@@ -117,11 +139,20 @@ APP.ui = (function () {
       });
       return;
     }
-    var questions = APP.utils.shuffleQuestions(APP.utils.getAllQuestionsFromLesson(lesson));
+    var all = APP.utils.getAllQuestionsFromLesson(lesson);
+    var pool = APP.progress.getIncludeMastered() ? all : APP.progress.filterOutMastered(all);
+    if (!pool.length) {
+      APP.modal.notice({
+        icon: '🎉',
+        title: 'All mastered!',
+        message: 'You\'ve marked every question in this lesson as mastered. Turn on "Include mastered questions" on the home screen to review them again.'
+      });
+      return;
+    }
     beginSession({
       mode: 'lesson',
       title: 'Lesson ' + lesson.lessonNumber + ' — ' + lesson.title,
-      questions: questions
+      questions: APP.utils.shuffleQuestions(pool)
     });
   }
 
@@ -151,19 +182,22 @@ APP.ui = (function () {
 
   /**
    * Update the dynamic "Available questions" count for the chosen range
-   * (section 16).
+   * (section 16). Filters out mastered when the toggle is off.
    */
   function updateReviewAvailable() {
     var from = parseInt(document.getElementById('reviewFrom').value, 10);
     var to = parseInt(document.getElementById('reviewTo').value, 10);
     var pool = APP.utils.getQuestionsFromLessonRange(APP.state.lessons, from, to);
+    if (!APP.progress.getIncludeMastered()) {
+      pool = APP.progress.filterOutMastered(pool);
+    }
     document.getElementById('reviewAvailable').textContent = pool.length;
     return pool;
   }
 
   /**
    * Review: combine range into one pool, shuffle, take requested amount
-   * (sections 13-15, 46).
+   * (sections 13-15, 46). Respects the "Include mastered" toggle.
    */
   function startReviewSession() {
     var from = parseInt(document.getElementById('reviewFrom').value, 10);
@@ -172,11 +206,14 @@ APP.ui = (function () {
     var count = countRaw === 'all' ? 'all' : parseInt(countRaw, 10);
 
     var pool = APP.utils.getQuestionsFromLessonRange(APP.state.lessons, from, to);
+    if (!APP.progress.getIncludeMastered()) {
+      pool = APP.progress.filterOutMastered(pool);
+    }
     if (!pool.length) {
       APP.modal.notice({
         icon: '📭',
         title: 'No questions available',
-        message: 'The selected lesson range has no practice questions.'
+        message: 'No questions to review in the selected range. Try a wider range or turn on "Include mastered questions".'
       });
       return;
     }
@@ -273,7 +310,13 @@ APP.ui = (function () {
 
   function recordAssessment(kind) {
     var q = currentQuestion();
-    if (q) { APP.state.session.results[q.id] = kind; }
+    if (!q) { return; }
+    APP.state.session.results[q.id] = kind;
+    if (kind === 'got') {
+      APP.progress.markMastered(q.id);
+    } else if (kind === 'practice') {
+      APP.progress.unmarkMastered(q.id);
+    }
   }
 
   // ---- Completion ----------------------------------------------------------

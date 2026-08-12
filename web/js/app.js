@@ -8,6 +8,7 @@
   function init() {
     wireStaticControls();
     wireSettings();
+    wireProgress();
     loadData();
   }
 
@@ -118,11 +119,11 @@
       // Self assessment (temporary session state only)
       case 'got-it':
         APP.ui.recordAssessment('got');
-        flash(target, '✅ Marked as mastered');
+        flash(target, '✅ Mastered — hidden next time');
         break;
       case 'need-practice':
         APP.ui.recordAssessment('practice');
-        flash(target, '🔄 Marked for practice');
+        flash(target, '🔄 Kept in the pool');
         break;
 
       // Completion
@@ -167,6 +168,32 @@
     });
     speed.addEventListener('change', function () {
       APP.state.settings.rate = parseFloat(speed.value);
+    });
+
+    document.getElementById('resetProgressBtn').addEventListener('click', function () {
+      APP.modal.confirm({
+        icon: '🗑️',
+        title: 'Reset progress?',
+        message: 'This clears every "Mastered" mark. Questions you\'ve mastered will appear again on your next practice.',
+        okLabel: 'Reset',
+        cancelLabel: 'Cancel',
+        danger: true
+      }).then(function (ok) {
+        if (!ok) { return; }
+        APP.progress.resetAll();
+        close();
+        APP.modal.notice({ icon: '✅', title: 'Progress reset', message: 'All mastered marks have been cleared.' });
+      });
+    });
+  }
+
+  // ---- Home-screen "Include mastered questions" toggle --------------------
+
+  function wireProgress() {
+    var toggle = document.getElementById('includeMasteredToggle');
+    toggle.checked = APP.progress.getIncludeMastered();
+    toggle.addEventListener('change', function () {
+      APP.progress.setIncludeMastered(toggle.checked);
     });
   }
 

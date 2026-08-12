@@ -48,6 +48,13 @@
             <span class="mode-desc">Mix questions from a range of lessons</span>
           </button>
         </div>
+        <label class="toggle-row" for="includeMasteredToggle">
+          <span class="toggle-label">
+            <span class="toggle-title">Include mastered questions</span>
+            <span class="toggle-sub">Off: skip questions you've marked as mastered.</span>
+          </span>
+          <input type="checkbox" id="includeMasteredToggle" class="toggle-switch">
+        </label>
       </section>
 
       <section class="screen" id="screen-lessons" data-screen="lessons" hidden>
@@ -167,6 +174,7 @@
           <option value="1.25">1.25x</option>
         </select>
       </label>
+      <button class="btn btn-outline btn-block" id="resetProgressBtn">🗑️ Reset progress</button>
       <button class="btn btn-outline btn-block" id="closeDrawerBtn">Close</button>
     </aside>
 
@@ -185,6 +193,7 @@
   </div>
 
   <script src="js/config.js"></script>
+  <script src="js/progress.js"></script>
   <script src="js/state.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/data.js"></script>
