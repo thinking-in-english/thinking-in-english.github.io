@@ -106,6 +106,10 @@
       case 'next':
         APP.ui.nextQuestion();
         break;
+      // Skip to next without revealing the answer.
+      case 'skip-next':
+        APP.ui.nextQuestion();
+        break;
 
       // Pre-reveal Speak & Check
       case 'speak-check':

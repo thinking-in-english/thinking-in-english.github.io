@@ -305,6 +305,12 @@ APP.ui = (function () {
     var primary = document.getElementById('primaryActionBtn');
     primary.textContent = 'Show Answer';
     primary.dataset.action = 'show-answer';
+    // Skip appears pre-reveal so users can jump ahead without seeing the answer.
+    var skip = document.getElementById('skipToNextBtn');
+    if (skip) {
+      skip.hidden = false;
+      skip.textContent = isLastQuestion() ? 'Finish' : 'Skip →';
+    }
 
     resetPreCheckUI();
     resetRecordingUI();
@@ -339,6 +345,8 @@ APP.ui = (function () {
     var primary = document.getElementById('primaryActionBtn');
     primary.textContent = isLastQuestion() ? 'Finish' : 'Next →';
     primary.dataset.action = 'next';
+    var skip = document.getElementById('skipToNextBtn');
+    if (skip) { skip.hidden = true; }
   }
 
   function isLastQuestion() {
