@@ -233,7 +233,6 @@ APP.ui = (function () {
 
     resetPreCheckUI();
     resetRecordingUI();
-    resetSpeechUI();
   }
 
   function revealAnswer() {
@@ -246,7 +245,6 @@ APP.ui = (function () {
     // TTS availability note (non-blocking).
     document.getElementById('ttsWarn').hidden = APP.tts.isSupported();
     document.getElementById('recWarn').hidden = APP.recorder.isSupported();
-    document.getElementById('srWarn').hidden = APP.speech.isSupported();
 
     // More info button only when this question has extra content.
     var q = currentQuestion();
@@ -294,8 +292,8 @@ APP.ui = (function () {
       else if (s.results[id] === 'practice') { practice++; }
     });
     document.getElementById('completeStats').innerHTML =
-      '<span class="stat-pill">✅ Got it: ' + got + '</span>' +
-      '<span class="stat-pill">🔁 Need practice: ' + practice + '</span>';
+      '<span class="stat-pill">✅ Đã thuộc: ' + got + '</span>' +
+      '<span class="stat-pill">🔄 Cần luyện lại: ' + practice + '</span>';
 
     // Keep the finished session available for "Practice Again".
     APP.state.lastSession = { mode: s.mode, title: s.title, sourceQuestions: s.questions.slice() };
@@ -347,49 +345,6 @@ APP.ui = (function () {
       show('[data-action="play-recording"]', true);
       show('[data-action="record-again"]', true);
     });
-  }
-
-  // ---- Speech recognition UI helpers --------------------------------------
-
-  function resetSpeechUI() {
-    var box = document.getElementById('srResult');
-    box.hidden = true;
-    box.className = 'sr-result';
-    box.innerHTML = '';
-  }
-
-  function onCheckSpeech() {
-    var q = currentQuestion();
-    if (!q) { return; }
-    var box = document.getElementById('srResult');
-    box.hidden = false;
-    box.className = 'sr-result';
-    box.innerHTML = '🎧 Listening… speak now.';
-
-    APP.speech.checkSpeech(q.english, APP.state.settings.accent)
-      .then(function (r) { renderSpeechResult(r); })
-      .catch(function (err) {
-        box.className = 'sr-result miss';
-        box.innerHTML = '<div class="sr-head">' + speechErrorTitle(err) + '</div>' +
-                        '<div>' + speechErrorHint(err) + '</div>';
-      });
-  }
-
-  function renderSpeechResult(r) {
-    var box = document.getElementById('srResult');
-    var head, cls;
-    if (r.status === 'ok') {
-      cls = 'ok'; head = '✓ Great!';
-    } else if (r.status === 'partial') {
-      cls = 'partial'; head = '△ Almost there';
-    } else {
-      cls = 'miss'; head = '✗ Keep practicing';
-    }
-    box.className = 'sr-result ' + cls;
-    box.innerHTML =
-      '<div class="sr-head">' + head + '</div>' +
-      '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' expected words recognized.</div>' +
-      '<div class="muted" style="font-size:12px;margin-top:6px">Speech match only — not a pronunciation score.</div>';
   }
 
   // ---- Pre-reveal Speak & Check -------------------------------------------
@@ -548,7 +503,6 @@ APP.ui = (function () {
     currentQuestion: currentQuestion,
     onRecordStart: onRecordStart,
     onRecordStop: onRecordStop,
-    onCheckSpeech: onCheckSpeech,
     onSpeakCheck: onSpeakCheck,
     showMoreInfo: showMoreInfo
   };

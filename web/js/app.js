@@ -110,11 +110,6 @@
         APP.ui.onRecordStart();
         break;
 
-      // Speech recognition
-      case 'check-speech':
-        APP.ui.onCheckSpeech();
-        break;
-
       // More info popup (shown only when this question has extra content)
       case 'more-info':
         APP.ui.showMoreInfo();
@@ -123,11 +118,11 @@
       // Self assessment (temporary session state only)
       case 'got-it':
         APP.ui.recordAssessment('got');
-        flash(target, 'Got it ✓');
+        flash(target, '✅ Đã đánh dấu');
         break;
       case 'need-practice':
         APP.ui.recordAssessment('practice');
-        flash(target, 'Marked 🔁');
+        flash(target, '🔄 Đã đánh dấu');
         break;
 
       // Completion
