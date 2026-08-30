@@ -17,6 +17,7 @@ APP.progress = (function () {
   var mastered = loadJSON(MASTERED_KEY, {});
   var prefs = Object.assign({
     includeMastered: false,
+    randomOrder: true,
     accent: 'US',
     rate: 1.0,
     voiceURI: null
@@ -68,6 +69,15 @@ APP.progress = (function () {
     save(PREFS_KEY, prefs);
   }
 
+  function getRandomOrder() {
+    // Default ON when the pref has never been set.
+    return prefs.randomOrder !== false;
+  }
+  function setRandomOrder(v) {
+    prefs.randomOrder = !!v;
+    save(PREFS_KEY, prefs);
+  }
+
   function getAccent() { return prefs.accent || 'US'; }
   function setAccent(v) { prefs.accent = v; save(PREFS_KEY, prefs); }
 
@@ -86,6 +96,8 @@ APP.progress = (function () {
     resetAll: resetAll,
     getIncludeMastered: getIncludeMastered,
     setIncludeMastered: setIncludeMastered,
+    getRandomOrder: getRandomOrder,
+    setRandomOrder: setRandomOrder,
     getAccent: getAccent,
     setAccent: setAccent,
     getRate: getRate,

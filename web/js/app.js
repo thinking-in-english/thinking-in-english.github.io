@@ -262,6 +262,14 @@
     toggle.addEventListener('change', function () {
       APP.progress.setIncludeMastered(toggle.checked);
     });
+
+    var randomToggle = document.getElementById('randomOrderToggle');
+    if (randomToggle) {
+      randomToggle.checked = APP.progress.getRandomOrder();
+      randomToggle.addEventListener('change', function () {
+        APP.progress.setRandomOrder(randomToggle.checked);
+      });
+    }
   }
 
   // Kick off once the DOM is ready.

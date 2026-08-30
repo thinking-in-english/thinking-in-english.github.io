@@ -37,6 +37,11 @@ APP.ui = (function () {
       var toggle = document.getElementById('includeMasteredToggle');
       if (toggle) { toggle.checked = APP.progress.getIncludeMastered(); }
     }
+    // Re-sync the Random-order toggle when returning to the lesson list.
+    if (name === 'lessons') {
+      var rnd = document.getElementById('randomOrderToggle');
+      if (rnd) { rnd.checked = APP.progress.getRandomOrder(); }
+    }
     // Settings FAB is only for Home — hide it elsewhere so it doesn't cover content.
     var fab = document.getElementById('settingsFab');
     if (fab) { fab.hidden = name !== 'home'; }
@@ -183,7 +188,7 @@ APP.ui = (function () {
     beginSession({
       mode: 'lesson',
       title: 'Lesson ' + lesson.lessonNumber + ' — ' + lesson.title,
-      questions: APP.utils.shuffleQuestions(pool)
+      questions: APP.progress.getRandomOrder() ? APP.utils.shuffleQuestions(pool) : pool.slice()
     });
   }
 
@@ -489,11 +494,15 @@ APP.ui = (function () {
   function practiceAgain() {
     var last = APP.state.lastSession;
     if (!last) { goHome(); return; }
-    // Fresh shuffle of the same question set (section 18).
+    // Review mode is always random. Lesson mode follows the Random-order pref.
+    var keepOrder = last.mode === 'lesson' && !APP.progress.getRandomOrder();
+    var questions = keepOrder
+      ? last.sourceQuestions.slice()
+      : APP.utils.shuffleQuestions(last.sourceQuestions);
     beginSession({
       mode: last.mode,
       title: last.title,
-      questions: APP.utils.shuffleQuestions(last.sourceQuestions)
+      questions: questions
     });
   }
 
