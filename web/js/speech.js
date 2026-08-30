@@ -14,6 +14,7 @@ APP.speech = (function () {
   var activeRecog = null;
 
   function isSupported() { return supported; }
+  function isActive() { return !!activeRecog; }
 
   // Force-stop any in-flight recognition so the browser releases the mic.
   function abort() {
@@ -157,6 +158,7 @@ APP.speech = (function () {
 
   return {
     isSupported: isSupported,
+    isActive: isActive,
     checkSpeech: checkSpeech,
     compareWords: compareWords,
     abort: abort

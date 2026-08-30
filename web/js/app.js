@@ -85,27 +85,42 @@
       }
     });
 
-    // Release the mic as soon as the tab goes background so the browser
-    // mic indicator turns off (user shouldn't have to close the tab).
+    // Track whether the mic was in use when the tab was hidden. When the user
+    // returns, ask if they want to stop it — iOS Safari doesn't reliably
+    // release the mic on background events alone.
+    var micUsedInBackground = false;
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) { releaseMic('visibilitychange'); }
-      else { showMicDebugBadge('visible-return'); }
+      if (document.hidden) {
+        if (isMicActive()) { micUsedInBackground = true; }
+      } else if (micUsedInBackground) {
+        micUsedInBackground = false;
+        if (isMicActive()) { promptStopMic(); }
+      }
     });
-    // NOTE: no window 'blur' listener — iOS Safari fires blur when the mic
-    // permission prompt appears, which would abort the recognition before
-    // the user can tap Allow.
-    window.addEventListener('pagehide', function () { releaseMic('pagehide'); });
-    window.addEventListener('pageshow', function () { showMicDebugBadge('pageshow'); });
+    // On real page unload, release synchronously — no chance to prompt.
+    window.addEventListener('pagehide', function () { releaseMic(); });
   }
 
-  function releaseMic(reason) {
-    try { console.debug('[mic] release:', reason); } catch (e) {}
-    var before = {
-      recording: !!(APP.recorder && APP.recorder.isRecording && APP.recorder.isRecording()),
-    };
-    try {
-      window.__lastMicRelease = { reason: reason, at: new Date().toISOString(), before: before };
-    } catch (e) {}
+  function isMicActive() {
+    var rec = APP.recorder && APP.recorder.isRecording && APP.recorder.isRecording();
+    var sp = APP.speech && APP.speech.isActive && APP.speech.isActive();
+    return !!(rec || sp);
+  }
+
+  function promptStopMic() {
+    APP.modal.confirm({
+      icon: '🎙️',
+      title: 'Stop microphone?',
+      message: 'You left the app while the microphone was still on. Stop microphone access now?',
+      okLabel: 'Stop microphone',
+      cancelLabel: 'Keep it on',
+      danger: true
+    }).then(function (ok) {
+      if (ok) { releaseMic(); }
+    });
+  }
+
+  function releaseMic() {
     try { APP.recorder.cleanup(); } catch (e) {}
     try { APP.speech.abort(); } catch (e) {}
     try { APP.tts.stopSpeech(); } catch (e) {}
@@ -113,35 +128,6 @@
     if (ui && typeof ui.resetRecordingUI === 'function') {
       try { ui.resetRecordingUI(); } catch (e) {}
     }
-    showMicDebugBadge(reason + ' rec=' + before.recording);
-  }
-
-  // Small on-screen indicator so we can verify releaseMic() actually ran on
-  // iOS Safari where console isn't visible. Auto-hides after 8s.
-  function showMicDebugBadge(reason) {
-    var el = document.getElementById('micDebugBadge');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'micDebugBadge';
-      el.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:99999;' +
-        'background:#111;color:#0f0;font:12px/1.2 monospace;padding:6px 10px;' +
-        'border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.4);opacity:.9;' +
-        'max-width:calc(100vw - 20px);white-space:pre-wrap;';
-      document.body.appendChild(el);
-    }
-    var t = new Date();
-    var hh = String(t.getHours()).padStart(2, '0');
-    var mm = String(t.getMinutes()).padStart(2, '0');
-    var ss = String(t.getSeconds()).padStart(2, '0');
-    var prev = el._log || '';
-    var line = hh + ':' + mm + ':' + ss + '  ' + reason;
-    el._log = (prev ? prev + '\n' : '') + line;
-    // Keep only the last 6 lines.
-    var lines = el._log.split('\n');
-    if (lines.length > 6) { lines = lines.slice(-6); el._log = lines.join('\n'); }
-    el.textContent = el._log;
-    clearTimeout(el._t);
-    el._t = setTimeout(function () { el.remove(); el._log = ''; }, 15000);
   }
 
   function currentScreenIsSession() {
