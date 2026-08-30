@@ -185,9 +185,22 @@
     accent.value = APP.state.settings.accent;
     speed.value = String(APP.state.settings.rate);
 
+    var ttsWarmed = false;
+
     function open() {
       populateVoices();  // voices load asynchronously; refresh each time
       drawer.hidden = false; backdrop.hidden = false;
+      // Warmup: iOS Safari locks SpeechSynthesis until it hears a speak() call
+      // from a direct user gesture. Playing a silent utterance on the fab click
+      // unlocks it so the first voice-change auto-preview actually plays.
+      if (!ttsWarmed && window.speechSynthesis) {
+        try {
+          var u = new SpeechSynthesisUtterance(' ');
+          u.volume = 0;
+          window.speechSynthesis.speak(u);
+        } catch (e) { /* ignore */ }
+        ttsWarmed = true;
+      }
     }
     function close() {
       APP.tts.stopSpeech();  // stop any voice preview still playing
