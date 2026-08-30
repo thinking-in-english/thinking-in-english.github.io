@@ -22,6 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Inject cache-bust version into asset URLs
+        run: |
+          VER="${GITHUB_SHA:0:8}"
+          echo "Using version $VER for cache-bust"
+          sed -i "s|href=\"css/styles.css\"|href=\"css/styles.css?v=$VER\"|g" web/index.html
+          sed -i "s|src=\"js/\([a-z]*\)\.js\"|src=\"js/\1.js?v=$VER\"|g" web/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -16,11 +16,20 @@
 
   function loadData() {
     APP.ui.showScreen('loading', false);
+    var loadingText = document.getElementById('loadingText');
+    if (loadingText) { loadingText.textContent = 'Loading lessons…'; }
+    // If the fetch takes unusually long, tell the user it's still trying so
+    // they don't think the app is frozen.
+    var slowHint = setTimeout(function () {
+      if (loadingText) { loadingText.textContent = 'Still loading… backend may be slow.'; }
+    }, 8000);
     APP.data.loadLessons()
       .then(function () {
+        clearTimeout(slowHint);
         APP.ui.goHome();
       })
       .catch(function (err) {
+        clearTimeout(slowHint);
         var msg = (err && err.message) ? err.message : 'Unable to load lessons.';
         document.getElementById('errorText').textContent = msg || 'Unable to load lessons.';
         APP.ui.showScreen('error', false);
