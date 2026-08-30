@@ -609,8 +609,7 @@ APP.ui = (function () {
     box.innerHTML =
       '<div class="sr-head">✓ Correct!</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' words recognized.</div>' +
-      '<div style="margin-top:6px;font-weight:600">' + escapeHtml(q.english) + '</div>' +
-      '<div class="muted" style="font-size:12px;margin-top:6px">Tap Show Answer for details, or Skip → for the next question.</div>';
+      '<div style="margin-top:6px;font-weight:600">' + escapeHtml(q.english) + '</div>';
   }
 
   function renderPreCheckFeedback(r) {
