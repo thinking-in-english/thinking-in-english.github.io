@@ -148,7 +148,6 @@ APP.tts = (function () {
   function speakText(text, options) {
     if (!supported || !text) { return false; }
     options = options || {};
-    stopSpeech(); // prevent overlapping instances / restart from beginning
 
     var utter = new SpeechSynthesisUtterance(text);
     utter.rate = options.rate || 1.0;
@@ -159,7 +158,15 @@ APP.tts = (function () {
     } else {
       utter.lang = APP.config.accentLang[options.accent] || 'en-US';
     }
-    window.speechSynthesis.speak(utter);
+    // Chrome bug: speak() right after cancel() sometimes never fires. Only
+    // delay when we actually need to interrupt, otherwise call directly so
+    // iOS Safari keeps the user-gesture link and plays on the first press.
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+      stopSpeech();
+      setTimeout(function () { window.speechSynthesis.speak(utter); }, 60);
+    } else {
+      window.speechSynthesis.speak(utter);
+    }
     return true;
   }
 
