@@ -85,39 +85,13 @@
       }
     });
 
-    // Track whether the mic was in use when the tab was hidden. When the user
-    // returns, ask if they want to stop it — iOS Safari doesn't reliably
-    // release the mic on background events alone.
-    var micUsedInBackground = false;
+    // Whenever the app is not on-screen, release the microphone. iOS Safari
+    // doesn't always honor this synchronously, so we also (a) hard-cap the
+    // recording length in recorder.js and (b) run the "reset trick" below.
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) {
-        if (isMicActive()) { micUsedInBackground = true; }
-      } else if (micUsedInBackground) {
-        micUsedInBackground = false;
-        if (isMicActive()) { promptStopMic(); }
-      }
+      if (document.hidden) { releaseMic(); }
     });
-    // On real page unload, release synchronously — no chance to prompt.
     window.addEventListener('pagehide', function () { releaseMic(); });
-  }
-
-  function isMicActive() {
-    var rec = APP.recorder && APP.recorder.isRecording && APP.recorder.isRecording();
-    var sp = APP.speech && APP.speech.isActive && APP.speech.isActive();
-    return !!(rec || sp);
-  }
-
-  function promptStopMic() {
-    APP.modal.confirm({
-      icon: '🎙️',
-      title: 'Stop microphone?',
-      message: 'You left the app while the microphone was still on. Stop microphone access now?',
-      okLabel: 'Stop microphone',
-      cancelLabel: 'Keep it on',
-      danger: true
-    }).then(function (ok) {
-      if (ok) { releaseMic(); }
-    });
   }
 
   function releaseMic() {
@@ -128,6 +102,20 @@
     if (ui && typeof ui.resetRecordingUI === 'function') {
       try { ui.resetRecordingUI(); } catch (e) {}
     }
+    // iOS Safari sometimes holds the mic indicator on even after
+    // SpeechRecognition.abort() and track.stop(). Acquiring a throwaway
+    // stream and immediately stopping it forces the browser to reconcile
+    // the mic state.
+    forceMicReset();
+  }
+
+  function forceMicReset() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { return; }
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+        s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      }).catch(function () {});
+    } catch (e) {}
   }
 
   function currentScreenIsSession() {

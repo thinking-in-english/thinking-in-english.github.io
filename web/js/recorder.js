@@ -15,9 +15,12 @@ APP.recorder = (function () {
   var stream = null;
   var pendingStream = null; // getUserMedia in flight; may need forced stop
   var cancelStart = false;  // set by cleanup() to abort in-flight start()
+  var autoStopTimer = null; // hard cap on recording duration
   var chunks = [];
   var audioUrl = null;
   var audioEl = null;
+
+  var MAX_RECORD_MS = 60 * 1000; // never keep mic on longer than 60s per take
 
   function isSupported() { return supported; }
   function isRecording() { return !!mediaRecorder && mediaRecorder.state === 'recording'; }
@@ -47,6 +50,13 @@ APP.recorder = (function () {
         if (e.data && e.data.size > 0) { chunks.push(e.data); }
       };
       mediaRecorder.start();
+      // Safety cap — if the user forgets to press Stop, the mic won't stay
+      // on forever (especially important when the tab is backgrounded).
+      if (autoStopTimer) { clearTimeout(autoStopTimer); }
+      autoStopTimer = setTimeout(function () {
+        try { if (isRecording()) { mediaRecorder.stop(); } } catch (e) {}
+        stopStream();
+      }, MAX_RECORD_MS);
     }).catch(function (err) {
       pendingStream = null;
       throw err;
@@ -78,8 +88,11 @@ APP.recorder = (function () {
   }
 
   function stopStream() {
+    if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
     if (stream) {
-      stream.getTracks().forEach(function (t) { t.stop(); });
+      stream.getTracks().forEach(function (t) {
+        try { t.stop(); } catch (e) {}
+      });
       stream = null;
     }
     mediaRecorder = null;
