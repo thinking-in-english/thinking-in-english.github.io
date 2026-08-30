@@ -189,7 +189,10 @@
       populateVoices();  // voices load asynchronously; refresh each time
       drawer.hidden = false; backdrop.hidden = false;
     }
-    function close() { drawer.hidden = true; backdrop.hidden = true; }
+    function close() {
+      APP.tts.stopSpeech();  // stop any voice preview still playing
+      drawer.hidden = true; backdrop.hidden = true;
+    }
 
     fab.addEventListener('click', open);
     closeBtn.addEventListener('click', close);
@@ -208,7 +211,18 @@
       var v = voice.value || null;
       APP.state.settings.voiceURI = v;
       APP.progress.setVoiceURI(v);
+      previewVoice();
     });
+
+    document.getElementById('voicePreviewBtn').addEventListener('click', previewVoice);
+
+    function previewVoice() {
+      APP.tts.speakText('Hello. This is a preview of the English voice.', {
+        accent: APP.state.settings.accent,
+        rate: APP.state.settings.rate,
+        voiceURI: APP.state.settings.voiceURI
+      });
+    }
 
     function populateVoices() {
       var voices = APP.tts.listEnglishVoices();
