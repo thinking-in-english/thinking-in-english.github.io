@@ -317,7 +317,7 @@ APP.ui = (function () {
     document.getElementById('viPrompt').textContent = q.vietnamese;
     var viEl = document.getElementById('viPrompt');
     viEl.classList.remove('collapsed', 'subdued');
-    document.getElementById('viToggleBtn').hidden = true;
+    document.getElementById('backToQuestionBtn').hidden = true;
     document.getElementById('enAnswer').textContent = q.english;
 
     // Reset to hidden-answer state.
@@ -344,14 +344,10 @@ APP.ui = (function () {
     s.revealed = true;
     document.getElementById('answerBlock').hidden = false;
     document.getElementById('preCheckBlock').hidden = true;
-    // Collapse VN prompt by default; user can expand via the toggle above.
-    // When expanded it stays subdued so the English answer keeps focus.
+    // Hide VN prompt; user can return to the question via Back to question.
     var viEl = document.getElementById('viPrompt');
-    viEl.classList.add('collapsed', 'subdued');
-    var vBtn = document.getElementById('viToggleBtn');
-    vBtn.hidden = false;
-    vBtn.classList.remove('expanded');
-    vBtn.querySelector('.vi-toggle-label').textContent = 'Show question';
+    viEl.classList.add('collapsed');
+    document.getElementById('backToQuestionBtn').hidden = false;
 
     // TTS availability note (non-blocking).
     document.getElementById('ttsWarn').hidden = APP.tts.isSupported();
@@ -431,13 +427,29 @@ APP.ui = (function () {
     input.checked = q ? APP.progress.isMastered(q.id) : false;
   }
 
-  /** Expand / collapse the Vietnamese prompt after the answer is revealed. */
-  function toggleViPrompt() {
-    var vi = document.getElementById('viPrompt');
-    var btn = document.getElementById('viToggleBtn');
-    var collapsed = vi.classList.toggle('collapsed');
-    btn.classList.toggle('expanded', !collapsed);
-    btn.querySelector('.vi-toggle-label').textContent = collapsed ? 'Show question' : 'Hide question';
+  /**
+   * Return from the answer view to the pre-reveal question state on the same
+   * question, so the user can try Speak & Check again.
+   */
+  function backToQuestion() {
+    var s = APP.state.session;
+    if (!s) { return; }
+    APP.tts.stopSpeech();
+    APP.recorder.cleanup();
+    s.revealed = false;
+    document.getElementById('answerBlock').hidden = true;
+    document.getElementById('preCheckBlock').hidden = false;
+    document.getElementById('viPrompt').classList.remove('collapsed', 'subdued');
+    document.getElementById('backToQuestionBtn').hidden = true;
+    var primary = document.getElementById('primaryActionBtn');
+    primary.textContent = 'Show Answer';
+    primary.dataset.action = 'show-answer';
+    var skip = document.getElementById('skipToNextBtn');
+    if (skip) {
+      skip.hidden = false;
+      skip.textContent = isLastQuestion() ? 'Finish' : 'Skip →';
+    }
+    resetPreCheckUI();
   }
 
   // ---- Completion ----------------------------------------------------------
@@ -677,7 +689,7 @@ APP.ui = (function () {
     recordAssessment: recordAssessment,
     toggleMastered: toggleMastered,
     setMasteredForCurrent: setMasteredForCurrent,
-    toggleViPrompt: toggleViPrompt,
+    backToQuestion: backToQuestion,
     practiceAgain: practiceAgain,
     endSessionCleanup: endSessionCleanup,
     currentQuestion: currentQuestion,

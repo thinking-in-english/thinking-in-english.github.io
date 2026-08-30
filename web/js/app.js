@@ -146,9 +146,9 @@
         APP.ui.showMoreInfo();
         break;
 
-      // Show / hide the Vietnamese prompt after the answer is revealed.
-      case 'toggle-vi':
-        APP.ui.toggleViPrompt();
+      // Return from the answer view back to the pre-reveal question state.
+      case 'back-to-question':
+        APP.ui.backToQuestion();
         break;
 
       // Completion
