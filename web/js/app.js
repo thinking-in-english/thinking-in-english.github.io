@@ -185,22 +185,9 @@
     accent.value = APP.state.settings.accent;
     speed.value = String(APP.state.settings.rate);
 
-    var ttsWarmed = false;
-
     function open() {
       populateVoices();  // voices load asynchronously; refresh each time
       drawer.hidden = false; backdrop.hidden = false;
-      // Warmup: iOS Safari locks SpeechSynthesis until it hears a speak() call
-      // from a direct user gesture. Playing a silent utterance on the fab click
-      // unlocks it so the first voice-change auto-preview actually plays.
-      if (!ttsWarmed && window.speechSynthesis) {
-        try {
-          var u = new SpeechSynthesisUtterance(' ');
-          u.volume = 0;
-          window.speechSynthesis.speak(u);
-        } catch (e) { /* ignore */ }
-        ttsWarmed = true;
-      }
     }
     function close() {
       APP.tts.stopSpeech();  // stop any voice preview still playing
@@ -227,8 +214,6 @@
       previewVoice();
     });
 
-    document.getElementById('voicePreviewBtn').addEventListener('click', previewVoice);
-
     function previewVoice() {
       APP.tts.speakText('Hello. This is a preview of the English voice.', {
         accent: APP.state.settings.accent,
@@ -240,14 +225,13 @@
     function populateVoices() {
       var voices = APP.tts.listEnglishVoices();
       var current = APP.state.settings.voiceURI || '';
-      var currentStillAvailable = current && voices.some(function (v) { return v.voiceURI === current; });
-      voice.innerHTML = '<option value="">Auto (best available)</option>' +
+      var options = [{ value: '', label: 'Auto (best available)' }].concat(
         voices.map(function (v) {
-          var sel = v.voiceURI === current ? ' selected' : '';
-          var label = APP.tts.getVoiceLabel(v);
-          return '<option value="' + v.voiceURI.replace(/"/g, '&quot;') + '"' + sel + '>' + label + '</option>';
-        }).join('');
-      if (!currentStillAvailable) { voice.value = ''; }
+          return { value: v.voiceURI, label: APP.tts.getVoiceLabel(v) };
+        })
+      );
+      var currentStillAvailable = current && voices.some(function (v) { return v.voiceURI === current; });
+      APP.csel.setOptions('voiceSel', 'voiceSelect', options, currentStillAvailable ? current : '');
     }
 
     document.getElementById('resetProgressBtn').addEventListener('click', function () {

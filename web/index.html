@@ -205,10 +205,13 @@
       </label>
       <div class="field">
         <span class="field-label">Voice</span>
-        <select id="voiceSelect" class="select">
-          <option value="">Auto (best available)</option>
-        </select>
-        <button type="button" class="btn btn-soft btn-block" id="voicePreviewBtn">🔊 Preview voice</button>
+        <div class="csel" id="voiceSel">
+          <button type="button" class="csel-trigger">
+            <span class="csel-value"></span>
+            <span class="csel-caret">▾</span>
+          </button>
+          <input type="hidden" id="voiceSelect">
+        </div>
         <span class="field-hint" id="voiceHint">Tip: iOS → Settings → Accessibility → Spoken Content → Voices → download an "Enhanced" or "Premium" English voice for a more natural sound.</span>
       </div>
       <button class="btn btn-outline btn-block" id="resetProgressBtn">🗑️ Reset progress</button>
