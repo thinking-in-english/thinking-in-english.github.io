@@ -13,7 +13,6 @@ APP.recorder = (function () {
 
   var mediaRecorder = null;
   var stream = null;
-  var pendingStream = null; // getUserMedia in flight; may need forced stop
   var cancelStart = false;  // set by cleanup() to abort in-flight start()
   var autoStopTimer = null; // hard cap on recording duration
   var chunks = [];
@@ -24,7 +23,6 @@ APP.recorder = (function () {
 
   function isSupported() { return supported; }
   function isRecording() { return !!mediaRecorder && mediaRecorder.state === 'recording'; }
-  function hasRecording() { return !!audioUrl; }
 
   /**
    * Start recording. Resolves once the microphone is live.
@@ -33,10 +31,7 @@ APP.recorder = (function () {
     if (!supported) { return Promise.reject(new Error('unsupported')); }
     releaseRecording(); // drop any previous take
     cancelStart = false;
-    var p = navigator.mediaDevices.getUserMedia({ audio: true });
-    pendingStream = p;
-    return p.then(function (s) {
-      pendingStream = null;
+    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
       // If cleanup() ran while getUserMedia was pending, drop the stream now.
       if (cancelStart) {
         s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
@@ -57,9 +52,6 @@ APP.recorder = (function () {
         try { if (isRecording()) { mediaRecorder.stop(); } } catch (e) {}
         stopStream();
       }, MAX_RECORD_MS);
-    }).catch(function (err) {
-      pendingStream = null;
-      throw err;
     });
   }
 
@@ -119,7 +111,6 @@ APP.recorder = (function () {
   return {
     isSupported: isSupported,
     isRecording: isRecording,
-    hasRecording: hasRecording,
     start: start,
     stop: stop,
     play: play,

@@ -12,12 +12,8 @@ APP.speech = (function () {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var supported = !!SR;
   var activeRecog = null;
-  var usedSinceLoad = false;
 
   function isSupported() { return supported; }
-  function isActive() { return !!activeRecog; }
-  function wasUsed() { return usedSinceLoad; }
-  function clearUsed() { usedSinceLoad = false; }
 
   // Force-stop any in-flight recognition so the browser releases the mic.
   // iOS Safari can ignore a single abort(), so we detach handlers and call
@@ -43,7 +39,6 @@ APP.speech = (function () {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
-      usedSinceLoad = true;
       var recog = new SR();
       recog.lang = APP.config.accentLang[accent] || 'en-US';
       recog.interimResults = false;
@@ -175,9 +170,6 @@ APP.speech = (function () {
 
   return {
     isSupported: isSupported,
-    isActive: isActive,
-    wasUsed: wasUsed,
-    clearUsed: clearUsed,
     checkSpeech: checkSpeech,
     compareWords: compareWords,
     abort: abort
