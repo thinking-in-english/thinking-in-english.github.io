@@ -65,26 +65,49 @@ APP.speech = (function () {
    *   missing: string[]
    * }}
    */
+  // A word passes when its edit distance to a candidate is at most this many
+  // characters — scaled by word length so short words are stricter.
+  var PASS_RATIO = 0.8; // 80% of expected words matched → treat as correct
+
+  function fuzzyTolerance(word) {
+    // 1 edit for words up to 4 chars, then ~30% of length (min 1, max 3).
+    if (word.length <= 4) { return 1; }
+    return Math.max(1, Math.min(3, Math.floor(word.length * 0.3)));
+  }
+
   function compareWords(targetText, recognizedText) {
     var expected = APP.utils.normalizeWords(targetText);
     var recognized = APP.utils.normalizeWords(recognizedText);
-    // Multiset match: if the target has "the the", the recognized text needs two "the"s.
-    var recCount = {};
-    recognized.forEach(function (w) { recCount[w] = (recCount[w] || 0) + 1; });
-
+    var used = new Array(recognized.length);
     var matched = 0;
+    var fuzzy = 0;
     var missing = [];
+
+    // Exact matches first (multiset), then fuzzy matches for the rest.
     expected.forEach(function (w) {
-      if (recCount[w]) {
-        matched++;
-        recCount[w]--;
-      } else {
-        missing.push(w);
+      var idx = -1;
+      for (var i = 0; i < recognized.length; i++) {
+        if (!used[i] && recognized[i] === w) { idx = i; break; }
       }
+      if (idx >= 0) { used[idx] = true; matched++; return; }
+
+      var tol = fuzzyTolerance(w);
+      var bestIdx = -1, bestDist = Infinity;
+      for (var j = 0; j < recognized.length; j++) {
+        if (used[j]) { continue; }
+        var d = APP.utils.levenshtein(w, recognized[j]);
+        if (d <= tol && d < bestDist) { bestDist = d; bestIdx = j; }
+      }
+      if (bestIdx >= 0) { used[bestIdx] = true; matched++; fuzzy++; return; }
+
+      missing.push(w);
     });
 
+    var ratio = expected.length ? matched / expected.length : 0;
     var status;
-    if (expected.length > 0 && matched === expected.length) {
+    if (expected.length === 0) {
+      status = 'miss';
+    } else if (matched === expected.length || ratio >= PASS_RATIO) {
       status = 'ok';
     } else if (matched > 0) {
       status = 'partial';
@@ -97,6 +120,7 @@ APP.speech = (function () {
       recognizedText: recognizedText,
       expectedCount: expected.length,
       matchedCount: matched,
+      fuzzyCount: fuzzy,
       missing: missing
     };
   }

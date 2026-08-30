@@ -142,11 +142,32 @@ APP.utils = (function () {
     });
   }
 
+  /** Levenshtein edit distance between two strings (for fuzzy word matching). */
+  function levenshtein(a, b) {
+    var m = a.length, n = b.length;
+    if (!m) { return n; }
+    if (!n) { return m; }
+    var dp = new Array(n + 1);
+    for (var j = 0; j <= n; j++) { dp[j] = j; }
+    for (var i = 1; i <= m; i++) {
+      var prev = dp[0];
+      dp[0] = i;
+      for (var k = 1; k <= n; k++) {
+        var cur = dp[k];
+        var cost = a.charAt(i - 1) === b.charAt(k - 1) ? 0 : 1;
+        dp[k] = Math.min(dp[k] + 1, dp[k - 1] + 1, prev + cost);
+        prev = cur;
+      }
+    }
+    return dp[n];
+  }
+
   return {
     shuffleQuestions: shuffleQuestions,
     getAllQuestionsFromLesson: getAllQuestionsFromLesson,
     getQuestionsFromLessonRange: getQuestionsFromLessonRange,
     getRandomQuestions: getRandomQuestions,
-    normalizeWords: normalizeWords
+    normalizeWords: normalizeWords,
+    levenshtein: levenshtein
   };
 })();
