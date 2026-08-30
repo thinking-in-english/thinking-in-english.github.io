@@ -13,6 +13,8 @@ APP.recorder = (function () {
 
   var mediaRecorder = null;
   var stream = null;
+  var pendingStream = null; // getUserMedia in flight; may need forced stop
+  var cancelStart = false;  // set by cleanup() to abort in-flight start()
   var chunks = [];
   var audioUrl = null;
   var audioEl = null;
@@ -27,7 +29,17 @@ APP.recorder = (function () {
   function start() {
     if (!supported) { return Promise.reject(new Error('unsupported')); }
     releaseRecording(); // drop any previous take
-    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+    cancelStart = false;
+    var p = navigator.mediaDevices.getUserMedia({ audio: true });
+    pendingStream = p;
+    return p.then(function (s) {
+      pendingStream = null;
+      // If cleanup() ran while getUserMedia was pending, drop the stream now.
+      if (cancelStart) {
+        s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+        cancelStart = false;
+        throw new Error('cancelled');
+      }
       stream = s;
       chunks = [];
       mediaRecorder = new MediaRecorder(stream);
@@ -35,6 +47,9 @@ APP.recorder = (function () {
         if (e.data && e.data.size > 0) { chunks.push(e.data); }
       };
       mediaRecorder.start();
+    }).catch(function (err) {
+      pendingStream = null;
+      throw err;
     });
   }
 
@@ -79,6 +94,8 @@ APP.recorder = (function () {
 
   /** Full cleanup when leaving a question or session (section 30). */
   function cleanup() {
+    // Signal in-flight getUserMedia to release its stream once it resolves.
+    cancelStart = true;
     if (isRecording()) {
       try { mediaRecorder.stop(); } catch (e) {}
     }
