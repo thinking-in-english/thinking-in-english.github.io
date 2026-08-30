@@ -88,12 +88,16 @@
     // Release the mic as soon as the tab goes background so the browser
     // mic indicator turns off (user shouldn't have to close the tab).
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) { releaseMic(); }
+      if (document.hidden) { releaseMic('visibilitychange'); }
     });
-    window.addEventListener('pagehide', releaseMic);
+    // Window losing focus (switch to another app / window on desktop) also
+    // means the user isn't using the app.
+    window.addEventListener('blur', function () { releaseMic('blur'); });
+    window.addEventListener('pagehide', function () { releaseMic('pagehide'); });
   }
 
-  function releaseMic() {
+  function releaseMic(reason) {
+    try { console.debug('[mic] release:', reason); } catch (e) {}
     try { APP.recorder.cleanup(); } catch (e) {}
     try { APP.speech.abort(); } catch (e) {}
     try { APP.tts.stopSpeech(); } catch (e) {}
