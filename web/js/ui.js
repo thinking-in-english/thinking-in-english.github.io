@@ -610,9 +610,7 @@ APP.ui = (function () {
       '<div class="sr-head">✓ Correct!</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' words recognized.</div>' +
       '<div style="margin-top:6px;font-weight:600">' + escapeHtml(q.english) + '</div>' +
-      '<div class="muted" style="font-size:12px;margin-top:6px">Moving to next question…</div>';
-    APP.state.session.results[q.id] = 'got';
-    setTimeout(function () { nextQuestion(); }, 1400);
+      '<div class="muted" style="font-size:12px;margin-top:6px">Tap Show Answer for details, or Skip → for the next question.</div>';
   }
 
   function renderPreCheckFeedback(r) {
