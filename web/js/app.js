@@ -6,10 +6,45 @@
 (function () {
 
   function init() {
+    installMicTracker();
     wireStaticControls();
     wireSettings();
     wireProgress();
     loadData();
+  }
+
+  // ---- Global microphone track tracking ------------------------------------
+  // Wrap getUserMedia so we hold a reference to every live audio track. This
+  // lets releaseMic() stop ALL mic access no matter which module opened it,
+  // which is the only reliable way to drop the iOS Safari mic indicator.
+  var liveTracks = [];
+
+  function installMicTracker() {
+    var md = navigator.mediaDevices;
+    if (!md || !md.getUserMedia || md.__micTracked) { return; }
+    var orig = md.getUserMedia.bind(md);
+    md.getUserMedia = function (constraints) {
+      return orig(constraints).then(function (streamObj) {
+        streamObj.getAudioTracks().forEach(function (t) {
+          liveTracks.push(t);
+          t.addEventListener('ended', function () { removeTrack(t); });
+        });
+        return streamObj;
+      });
+    };
+    md.__micTracked = true;
+  }
+
+  function removeTrack(t) {
+    var i = liveTracks.indexOf(t);
+    if (i >= 0) { liveTracks.splice(i, 1); }
+  }
+
+  function stopAllMicTracks() {
+    liveTracks.slice().forEach(function (t) {
+      try { t.stop(); } catch (e) {}
+      removeTrack(t);
+    });
   }
 
   // ---- Data loading with loading / error / retry states --------------------
@@ -85,9 +120,7 @@
       }
     });
 
-    // Whenever the app is not on-screen, release the microphone. iOS Safari
-    // doesn't always honor this synchronously, so we also (a) hard-cap the
-    // recording length in recorder.js and (b) run the "reset trick" below.
+    // The instant the app leaves the screen, release the microphone.
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) { releaseMic(); }
     });
@@ -98,24 +131,12 @@
     try { APP.recorder.cleanup(); } catch (e) {}
     try { APP.speech.abort(); } catch (e) {}
     try { APP.tts.stopSpeech(); } catch (e) {}
+    // Belt-and-suspenders: stop every live mic track we ever handed out.
+    stopAllMicTracks();
     var ui = APP.ui;
     if (ui && typeof ui.resetRecordingUI === 'function') {
       try { ui.resetRecordingUI(); } catch (e) {}
     }
-    // iOS Safari sometimes holds the mic indicator on even after
-    // SpeechRecognition.abort() and track.stop(). Acquiring a throwaway
-    // stream and immediately stopping it forces the browser to reconcile
-    // the mic state.
-    forceMicReset();
-  }
-
-  function forceMicReset() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { return; }
-    try {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
-        s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
-      }).catch(function () {});
-    } catch (e) {}
   }
 
   function currentScreenIsSession() {
