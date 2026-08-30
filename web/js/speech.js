@@ -12,9 +12,12 @@ APP.speech = (function () {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var supported = !!SR;
   var activeRecog = null;
+  var usedSinceLoad = false;
 
   function isSupported() { return supported; }
   function isActive() { return !!activeRecog; }
+  function wasUsed() { return usedSinceLoad; }
+  function clearUsed() { usedSinceLoad = false; }
 
   // Force-stop any in-flight recognition so the browser releases the mic.
   // iOS Safari can ignore a single abort(), so we detach handlers and call
@@ -40,6 +43,7 @@ APP.speech = (function () {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
+      usedSinceLoad = true;
       var recog = new SR();
       recog.lang = APP.config.accentLang[accent] || 'en-US';
       recog.interimResults = false;
@@ -52,6 +56,14 @@ APP.speech = (function () {
         if (settled) { return; }
         settled = true;
         if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+        // Release the mic immediately — like tapping Stop in a recorder app —
+        // instead of waiting for iOS to end the session on its own.
+        if (activeRecog === recog) { activeRecog = null; }
+        try { recog.onresult = null; } catch (e) {}
+        try { recog.onerror = null; } catch (e) {}
+        try { recog.onend = null; } catch (e) {}
+        try { recog.stop(); } catch (e) {}
+        try { recog.abort(); } catch (e) {}
         fn(arg);
       }
 
@@ -71,7 +83,6 @@ APP.speech = (function () {
         done(reject, new Error(event.error || 'speech-error'));
       };
       recog.onend = function () {
-        if (activeRecog === recog) { activeRecog = null; }
         // iOS Safari sometimes fires onend without onresult/onerror on the
         // first run after granting permission. Surface it as no-speech.
         done(reject, new Error('no-speech'));
@@ -81,9 +92,8 @@ APP.speech = (function () {
         activeRecog = recog;
         recog.start();
         // Safety net: if the engine never fires any event (known iOS bug on
-        // first run), abort and reject after 12s so UI doesn't freeze.
+        // first run), release and reject after 12s so the mic never lingers.
         watchdog = setTimeout(function () {
-          try { recog.abort(); } catch (e) {}
           done(reject, new Error('no-speech'));
         }, 12000);
       } catch (e) {
@@ -166,6 +176,8 @@ APP.speech = (function () {
   return {
     isSupported: isSupported,
     isActive: isActive,
+    wasUsed: wasUsed,
+    clearUsed: clearUsed,
     checkSpeech: checkSpeech,
     compareWords: compareWords,
     abort: abort
