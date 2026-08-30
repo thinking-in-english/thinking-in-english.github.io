@@ -84,6 +84,23 @@
         e.returnValue = '';
       }
     });
+
+    // Release the mic as soon as the tab goes background so the browser
+    // mic indicator turns off (user shouldn't have to close the tab).
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) { releaseMic(); }
+    });
+    window.addEventListener('pagehide', releaseMic);
+  }
+
+  function releaseMic() {
+    try { APP.recorder.cleanup(); } catch (e) {}
+    try { APP.speech.abort(); } catch (e) {}
+    try { APP.tts.stopSpeech(); } catch (e) {}
+    var ui = APP.ui;
+    if (ui && typeof ui.resetRecordingUI === 'function') {
+      try { ui.resetRecordingUI(); } catch (e) {}
+    }
   }
 
   function currentScreenIsSession() {

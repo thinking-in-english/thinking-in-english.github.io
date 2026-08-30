@@ -11,8 +11,16 @@ APP.speech = (function () {
 
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var supported = !!SR;
+  var activeRecog = null;
 
   function isSupported() { return supported; }
+
+  // Force-stop any in-flight recognition so the browser releases the mic.
+  function abort() {
+    if (!activeRecog) { return; }
+    try { activeRecog.abort(); } catch (e) {}
+    activeRecog = null;
+  }
 
   /**
    * Listen once and compare against the target sentence.
@@ -45,11 +53,15 @@ APP.speech = (function () {
       recog.onerror = function (event) {
         reject(new Error(event.error || 'speech-error'));
       };
-      recog.onend = function () { /* result / error already handled */ };
+      recog.onend = function () {
+        if (activeRecog === recog) { activeRecog = null; }
+      };
 
       try {
+        activeRecog = recog;
         recog.start();
       } catch (e) {
+        activeRecog = null;
         reject(e);
       }
     });
@@ -128,6 +140,7 @@ APP.speech = (function () {
   return {
     isSupported: isSupported,
     checkSpeech: checkSpeech,
-    compareWords: compareWords
+    compareWords: compareWords,
+    abort: abort
   };
 })();

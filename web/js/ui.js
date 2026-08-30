@@ -705,6 +705,7 @@ APP.ui = (function () {
     onRecordStart: onRecordStart,
     onRecordStop: onRecordStop,
     onSpeakCheck: onSpeakCheck,
-    showMoreInfo: showMoreInfo
+    showMoreInfo: showMoreInfo,
+    resetRecordingUI: resetRecordingUI
   };
 })();
