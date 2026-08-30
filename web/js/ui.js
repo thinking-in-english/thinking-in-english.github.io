@@ -606,10 +606,14 @@ APP.ui = (function () {
   function handlePreCheckCorrect(q, r) {
     var box = document.getElementById('preCheckResult');
     box.className = 'sr-result ok';
+    var hint = q.moreInfo
+      ? '<div class="muted" style="font-size:12px;margin-top:6px">💡 Tap Show Answer to read more.</div>'
+      : '';
     box.innerHTML =
       '<div class="sr-head">✓ Correct!</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' words recognized.</div>' +
-      '<div style="margin-top:6px;font-weight:600">' + escapeHtml(q.english) + '</div>';
+      '<div style="margin-top:6px;font-weight:600">' + escapeHtml(q.english) + '</div>' +
+      hint;
   }
 
   function renderPreCheckFeedback(r) {
