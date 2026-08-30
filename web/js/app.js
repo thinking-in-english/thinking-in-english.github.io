@@ -171,18 +171,16 @@
     setTimeout(function () { btn.textContent = original; }, 900);
   }
 
-  // ---- Settings drawer (accent + speed) -----------------------------------
+  // ---- Settings drawer (speed + voice) ------------------------------------
 
   function wireSettings() {
     var fab = document.getElementById('settingsFab');
     var drawer = document.getElementById('settingsDrawer');
     var backdrop = document.getElementById('drawerBackdrop');
     var closeBtn = document.getElementById('closeDrawerBtn');
-    var accent = document.getElementById('accentSelect');
     var speed = document.getElementById('speedSelect');
     var voice = document.getElementById('voiceSelect');
 
-    accent.value = APP.state.settings.accent;
     speed.value = String(APP.state.settings.rate);
 
     function open() {
@@ -198,10 +196,6 @@
     closeBtn.addEventListener('click', close);
     backdrop.addEventListener('click', close);
 
-    accent.addEventListener('change', function () {
-      APP.state.settings.accent = accent.value;
-      APP.progress.setAccent(accent.value);
-    });
     speed.addEventListener('change', function () {
       var r = parseFloat(speed.value);
       APP.state.settings.rate = r;
