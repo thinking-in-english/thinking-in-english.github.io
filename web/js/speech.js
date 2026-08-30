@@ -38,6 +38,15 @@ APP.speech = (function () {
       // Ask for more guesses so we can pick the one that best matches the target.
       recog.maxAlternatives = 5;
 
+      var settled = false;
+      var watchdog = null;
+      function done(fn, arg) {
+        if (settled) { return; }
+        settled = true;
+        if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+        fn(arg);
+      }
+
       recog.onresult = function (event) {
         var alts = event.results[0];
         var best = null;
@@ -48,21 +57,30 @@ APP.speech = (function () {
             best = r;
           }
         }
-        resolve(best);
+        done(resolve, best);
       };
       recog.onerror = function (event) {
-        reject(new Error(event.error || 'speech-error'));
+        done(reject, new Error(event.error || 'speech-error'));
       };
       recog.onend = function () {
         if (activeRecog === recog) { activeRecog = null; }
+        // iOS Safari sometimes fires onend without onresult/onerror on the
+        // first run after granting permission. Surface it as no-speech.
+        done(reject, new Error('no-speech'));
       };
 
       try {
         activeRecog = recog;
         recog.start();
+        // Safety net: if the engine never fires any event (known iOS bug on
+        // first run), abort and reject after 12s so UI doesn't freeze.
+        watchdog = setTimeout(function () {
+          try { recog.abort(); } catch (e) {}
+          done(reject, new Error('no-speech'));
+        }, 12000);
       } catch (e) {
         activeRecog = null;
-        reject(e);
+        done(reject, e);
       }
     });
   }

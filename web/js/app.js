@@ -90,9 +90,9 @@
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) { releaseMic('visibilitychange'); }
     });
-    // Window losing focus (switch to another app / window on desktop) also
-    // means the user isn't using the app.
-    window.addEventListener('blur', function () { releaseMic('blur'); });
+    // NOTE: no window 'blur' listener — iOS Safari fires blur when the mic
+    // permission prompt appears, which would abort the recognition before
+    // the user can tap Allow.
     window.addEventListener('pagehide', function () { releaseMic('pagehide'); });
   }
 
