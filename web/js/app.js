@@ -98,6 +98,10 @@
 
   function releaseMic(reason) {
     try { console.debug('[mic] release:', reason); } catch (e) {}
+    // Save last release info so we can display it when the user returns.
+    try {
+      window.__lastMicRelease = { reason: reason, at: new Date().toISOString() };
+    } catch (e) {}
     try { APP.recorder.cleanup(); } catch (e) {}
     try { APP.speech.abort(); } catch (e) {}
     try { APP.tts.stopSpeech(); } catch (e) {}
@@ -105,6 +109,28 @@
     if (ui && typeof ui.resetRecordingUI === 'function') {
       try { ui.resetRecordingUI(); } catch (e) {}
     }
+    showMicDebugBadge(reason);
+  }
+
+  // Small on-screen indicator so we can verify releaseMic() actually ran on
+  // iOS Safari where console isn't visible. Auto-hides after 4s.
+  function showMicDebugBadge(reason) {
+    var el = document.getElementById('micDebugBadge');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'micDebugBadge';
+      el.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:99999;' +
+        'background:#111;color:#0f0;font:12px/1.2 monospace;padding:6px 10px;' +
+        'border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.4);opacity:.9;';
+      document.body.appendChild(el);
+    }
+    var t = new Date();
+    var hh = String(t.getHours()).padStart(2, '0');
+    var mm = String(t.getMinutes()).padStart(2, '0');
+    var ss = String(t.getSeconds()).padStart(2, '0');
+    el.textContent = 'mic released @ ' + hh + ':' + mm + ':' + ss + ' (' + reason + ')';
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.remove(); }, 8000);
   }
 
   function currentScreenIsSession() {
