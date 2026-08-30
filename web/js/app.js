@@ -89,18 +89,22 @@
     // mic indicator turns off (user shouldn't have to close the tab).
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) { releaseMic('visibilitychange'); }
+      else { showMicDebugBadge('visible-return'); }
     });
     // NOTE: no window 'blur' listener — iOS Safari fires blur when the mic
     // permission prompt appears, which would abort the recognition before
     // the user can tap Allow.
     window.addEventListener('pagehide', function () { releaseMic('pagehide'); });
+    window.addEventListener('pageshow', function () { showMicDebugBadge('pageshow'); });
   }
 
   function releaseMic(reason) {
     try { console.debug('[mic] release:', reason); } catch (e) {}
-    // Save last release info so we can display it when the user returns.
+    var before = {
+      recording: !!(APP.recorder && APP.recorder.isRecording && APP.recorder.isRecording()),
+    };
     try {
-      window.__lastMicRelease = { reason: reason, at: new Date().toISOString() };
+      window.__lastMicRelease = { reason: reason, at: new Date().toISOString(), before: before };
     } catch (e) {}
     try { APP.recorder.cleanup(); } catch (e) {}
     try { APP.speech.abort(); } catch (e) {}
@@ -109,11 +113,11 @@
     if (ui && typeof ui.resetRecordingUI === 'function') {
       try { ui.resetRecordingUI(); } catch (e) {}
     }
-    showMicDebugBadge(reason);
+    showMicDebugBadge(reason + ' rec=' + before.recording);
   }
 
   // Small on-screen indicator so we can verify releaseMic() actually ran on
-  // iOS Safari where console isn't visible. Auto-hides after 4s.
+  // iOS Safari where console isn't visible. Auto-hides after 8s.
   function showMicDebugBadge(reason) {
     var el = document.getElementById('micDebugBadge');
     if (!el) {
@@ -121,16 +125,23 @@
       el.id = 'micDebugBadge';
       el.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:99999;' +
         'background:#111;color:#0f0;font:12px/1.2 monospace;padding:6px 10px;' +
-        'border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.4);opacity:.9;';
+        'border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.4);opacity:.9;' +
+        'max-width:calc(100vw - 20px);white-space:pre-wrap;';
       document.body.appendChild(el);
     }
     var t = new Date();
     var hh = String(t.getHours()).padStart(2, '0');
     var mm = String(t.getMinutes()).padStart(2, '0');
     var ss = String(t.getSeconds()).padStart(2, '0');
-    el.textContent = 'mic released @ ' + hh + ':' + mm + ':' + ss + ' (' + reason + ')';
+    var prev = el._log || '';
+    var line = hh + ':' + mm + ':' + ss + '  ' + reason;
+    el._log = (prev ? prev + '\n' : '') + line;
+    // Keep only the last 6 lines.
+    var lines = el._log.split('\n');
+    if (lines.length > 6) { lines = lines.slice(-6); el._log = lines.join('\n'); }
+    el.textContent = el._log;
     clearTimeout(el._t);
-    el._t = setTimeout(function () { el.remove(); }, 8000);
+    el._t = setTimeout(function () { el.remove(); el._log = ''; }, 15000);
   }
 
   function currentScreenIsSession() {
