@@ -669,7 +669,7 @@ APP.ui = (function () {
     var html = escapeHtml(q.moreInfo).replace(/\n/g, '<br>');
     APP.modal.notice({
       icon: '💡',
-      title: 'More info',
+      title: 'Read more',
       html: html,
       scrollable: true,
       okLabel: 'Close'

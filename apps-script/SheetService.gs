@@ -159,7 +159,7 @@ var SheetService = (function () {
       if (en === -1 && (h.indexOf('eng') !== -1 || h.indexOf('anh') !== -1)) {
         en = c;
       }
-      if (moreInfo === -1 && (h.indexOf('more info') !== -1 || h.indexOf('note') !== -1 || h.indexOf('info') !== -1 || h.indexOf('chú thích') !== -1 || h.indexOf('ghi chú') !== -1)) {
+      if (moreInfo === -1 && (h.indexOf('read more') !== -1 || h.indexOf('more info') !== -1 || h.indexOf('note') !== -1 || h.indexOf('info') !== -1 || h.indexOf('chú thích') !== -1 || h.indexOf('ghi chú') !== -1)) {
         moreInfo = c;
       }
     }
