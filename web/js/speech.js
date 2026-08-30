@@ -27,16 +27,25 @@ APP.speech = (function () {
       var recog = new SR();
       recog.lang = APP.config.accentLang[accent] || 'en-US';
       recog.interimResults = false;
-      recog.maxAlternatives = 1;
+      // Ask for more guesses so we can pick the one that best matches the target.
+      recog.maxAlternatives = 5;
 
       recog.onresult = function (event) {
-        var transcript = event.results[0][0].transcript;
-        resolve(compareWords(targetText, transcript));
+        var alts = event.results[0];
+        var best = null;
+        for (var i = 0; i < alts.length; i++) {
+          var r = compareWords(targetText, alts[i].transcript);
+          if (!best || r.matchedCount > best.matchedCount ||
+              (r.matchedCount === best.matchedCount && r.status === 'ok')) {
+            best = r;
+          }
+        }
+        resolve(best);
       };
       recog.onerror = function (event) {
         reject(new Error(event.error || 'speech-error'));
       };
-      recog.onend = function () { /* no-op; result/error already handled */ };
+      recog.onend = function () { /* result / error already handled */ };
 
       try {
         recog.start();
@@ -59,14 +68,19 @@ APP.speech = (function () {
   function compareWords(targetText, recognizedText) {
     var expected = APP.utils.normalizeWords(targetText);
     var recognized = APP.utils.normalizeWords(recognizedText);
-    var recognizedSet = {};
-    recognized.forEach(function (w) { recognizedSet[w] = true; });
+    // Multiset match: if the target has "the the", the recognized text needs two "the"s.
+    var recCount = {};
+    recognized.forEach(function (w) { recCount[w] = (recCount[w] || 0) + 1; });
 
     var matched = 0;
     var missing = [];
     expected.forEach(function (w) {
-      if (recognizedSet[w]) { matched++; }
-      else { missing.push(w); }
+      if (recCount[w]) {
+        matched++;
+        recCount[w]--;
+      } else {
+        missing.push(w);
+      }
     });
 
     var status;

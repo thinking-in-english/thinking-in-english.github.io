@@ -621,9 +621,11 @@ APP.ui = (function () {
     if (r.status === 'partial') { cls = 'partial'; head = '△ Almost — try again'; }
     else { cls = 'miss'; head = '✗ Not quite — try again'; }
     box.className = 'sr-result ' + cls;
+    var heard = r.recognizedText ? String(r.recognizedText).trim() : '';
     box.innerHTML =
       '<div class="sr-head">' + head + '</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' expected words recognized.</div>' +
+      (heard ? '<div style="margin-top:6px;font-size:13px">Heard: "<em>' + escapeHtml(heard) + '</em>"</div>' : '') +
       '<div class="muted" style="font-size:12px;margin-top:6px">Speech match only — not a pronunciation score.</div>';
   }
 
