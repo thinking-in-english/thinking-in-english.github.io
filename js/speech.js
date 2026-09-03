@@ -15,11 +15,18 @@ APP.speech = (function () {
 
   function isSupported() { return supported; }
 
-  // Stop any in-flight recognition (used when the app is backgrounded).
+  // Force-stop any in-flight recognition so the browser releases the mic.
+  // iOS Safari can ignore a single abort(), so we detach handlers and call
+  // both stop() and abort().
   function abort() {
     if (!activeRecog) { return; }
-    try { activeRecog.abort(); } catch (e) {}
+    var r = activeRecog;
     activeRecog = null;
+    try { r.onresult = null; } catch (e) {}
+    try { r.onerror = null; } catch (e) {}
+    try { r.onend = null; } catch (e) {}
+    try { r.stop(); } catch (e) {}
+    try { r.abort(); } catch (e) {}
   }
 
   /**
@@ -35,7 +42,25 @@ APP.speech = (function () {
       var recog = new SR();
       recog.lang = APP.config.accentLang[accent] || 'en-US';
       recog.interimResults = false;
+      // Ask for more guesses so we can pick the one that best matches the target.
       recog.maxAlternatives = 5;
+
+      var settled = false;
+      var watchdog = null;
+      function done(fn, arg) {
+        if (settled) { return; }
+        settled = true;
+        if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+        // Release the mic immediately — like tapping Stop in a recorder app —
+        // instead of waiting for iOS to end the session on its own.
+        if (activeRecog === recog) { activeRecog = null; }
+        try { recog.onresult = null; } catch (e) {}
+        try { recog.onerror = null; } catch (e) {}
+        try { recog.onend = null; } catch (e) {}
+        try { recog.stop(); } catch (e) {}
+        try { recog.abort(); } catch (e) {}
+        fn(arg);
+      }
 
       recog.onresult = function (event) {
         var alts = event.results[0];
@@ -47,21 +72,28 @@ APP.speech = (function () {
             best = r;
           }
         }
-        resolve(best);
+        done(resolve, best);
       };
       recog.onerror = function (event) {
-        reject(new Error(event.error || 'speech-error'));
+        done(reject, new Error(event.error || 'speech-error'));
       };
       recog.onend = function () {
-        if (activeRecog === recog) { activeRecog = null; }
+        // iOS Safari sometimes fires onend without onresult/onerror on the
+        // first run after granting permission. Surface it as no-speech.
+        done(reject, new Error('no-speech'));
       };
 
       try {
         activeRecog = recog;
         recog.start();
+        // Safety net: if the engine never fires any event (known iOS bug on
+        // first run), release and reject after 12s so the mic never lingers.
+        watchdog = setTimeout(function () {
+          done(reject, new Error('no-speech'));
+        }, 12000);
       } catch (e) {
         activeRecog = null;
-        reject(e);
+        done(reject, e);
       }
     });
   }
