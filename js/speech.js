@@ -39,85 +39,37 @@ APP.speech = (function () {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
-      var retried = false;
-      var startedAt = 0;
+      var recog = new SR();
+      recog.lang = APP.config.accentLang[accent] || 'en-US';
+      recog.interimResults = false;
+      recog.maxAlternatives = 5;
 
-      function makeRecog() {
-        var recog = new SR();
-        recog.lang = APP.config.accentLang[accent] || 'en-US';
-        recog.interimResults = false;
-        recog.maxAlternatives = 5;
-
-        var settled = false;
-        var watchdog = null;
-
-        function finish(fn, arg, forceStop) {
-          if (settled) { return; }
-          settled = true;
-          if (watchdog) { clearTimeout(watchdog); watchdog = null; }
-          if (activeRecog === recog) { activeRecog = null; }
-          try { recog.onresult = null; } catch (e) {}
-          try { recog.onerror = null; } catch (e) {}
-          try { recog.onend = null; } catch (e) {}
-          // Only force-abort when interrupted externally. On a natural onresult
-          // let iOS end the session on its own — hard-aborting seems to leave
-          // the mic pipeline in a low-gain state for the next attempt.
-          if (forceStop) {
-            try { recog.stop(); } catch (e) {}
-            try { recog.abort(); } catch (e) {}
+      recog.onresult = function (event) {
+        var alts = event.results[0];
+        var best = null;
+        for (var i = 0; i < alts.length; i++) {
+          var r = compareWords(targetText, alts[i].transcript);
+          if (!best || r.matchedCount > best.matchedCount ||
+              (r.matchedCount === best.matchedCount && r.status === 'ok')) {
+            best = r;
           }
-          fn(arg);
         }
+        resolve(best);
+      };
+      recog.onerror = function (event) {
+        reject(new Error(event.error || 'speech-error'));
+      };
+      recog.onend = function () {
+        if (activeRecog === recog) { activeRecog = null; }
+      };
 
-        recog.onresult = function (event) {
-          var alts = event.results[0];
-          var best = null;
-          for (var i = 0; i < alts.length; i++) {
-            var r = compareWords(targetText, alts[i].transcript);
-            if (!best || r.matchedCount > best.matchedCount ||
-                (r.matchedCount === best.matchedCount && r.status === 'ok')) {
-              best = r;
-            }
-          }
-          finish(resolve, best, false);
-        };
-        recog.onerror = function (event) {
-          finish(reject, new Error(event.error || 'speech-error'), true);
-        };
-        recog.onend = function () {
-          // If recognition ended within ~800ms of start with no result, it's
-          // almost certainly the iOS mic warm-up bug — silently retry once.
-          var elapsed = Date.now() - startedAt;
-          if (!retried && elapsed < 800) {
-            retried = true;
-            settled = true;
-            if (watchdog) { clearTimeout(watchdog); watchdog = null; }
-            if (activeRecog === recog) { activeRecog = null; }
-            // Wait long enough for iOS to fully release the audio session
-            // before starting a fresh recognition; a short delay causes
-            // the next attempt to run with degraded mic gain.
-            setTimeout(startAttempt, 700);
-            return;
-          }
-          finish(reject, new Error('no-speech'), false);
-        };
-
-        try {
-          activeRecog = recog;
-          startedAt = Date.now();
-          recog.start();
-          // Safety net: release and reject after 10s so the mic never lingers.
-          watchdog = setTimeout(function () {
-            finish(reject, new Error('no-speech'), true);
-          }, 10000);
-        } catch (e) {
-          activeRecog = null;
-          finish(reject, e, true);
-        }
+      try {
+        activeRecog = recog;
+        recog.start();
+      } catch (e) {
+        activeRecog = null;
+        reject(e);
       }
-
-      function startAttempt() { makeRecog(); }
-      startAttempt();
     });
   }
 
