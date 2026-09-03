@@ -311,6 +311,26 @@
         APP.modal.notice({ icon: '✅', title: 'Progress reset', message: 'All mastered marks have been cleared.' });
       });
     });
+
+    document.getElementById('voiceDebugBtn').addEventListener('click', function () {
+      var voices = APP.tts.getAvailableVoices();
+      var en = voices.filter(function (v) {
+        return v.lang && v.lang.toLowerCase().indexOf('en') === 0;
+      });
+      var rows = en.map(function (v) {
+        return '<div style="font-size:12px;margin-bottom:6px;word-break:break-all">' +
+          '<strong>' + v.name + '</strong> (' + v.lang + ')' +
+          (v.localService ? ' · on-device' : ' · network') + '<br>' +
+          '<span class="muted">' + v.voiceURI + '</span></div>';
+      }).join('');
+      APP.modal.notice({
+        icon: '🔍',
+        title: en.length + ' English voices detected',
+        html: rows || '<div class="muted">No English voices found.</div>',
+        scrollable: true,
+        okLabel: 'Close'
+      });
+    });
   }
 
   // ---- Home-screen "Include mastered questions" toggle --------------------
