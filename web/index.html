@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>English Speaking Reflexes — Speaking &amp; Shadowing Practice</title>
-  <link rel="stylesheet" href="css/styles.css?v=18">
+  <link rel="stylesheet" href="css/styles.css?v=19">
 </head>
 <body>
   <div id="app">
@@ -218,8 +218,30 @@
         </div>
         <span class="field-hint" id="voiceHint">Tip: iOS → Settings → Accessibility → Spoken Content → Voices → download an "Enhanced" or "Premium" English voice for a more natural sound.</span>
       </div>
+
+      <div class="field">
+        <span class="field-label">Google Cloud TTS (optional)</span>
+        <input type="password" id="googleApiKeyInput" placeholder="Paste your Google TTS API key" autocomplete="off"
+          style="width:100%;padding:14px 16px;font-size:16px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;color:var(--ink);">
+        <span class="field-hint">
+          Uses your own key. Free tier: 4M chars/month. Get one at
+          <a href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com" target="_blank" rel="noopener">Google Cloud Console</a>.
+        </span>
+      </div>
+
+      <div class="field" id="googleVoiceField" hidden>
+        <span class="field-label">Google Voice</span>
+        <div class="csel" id="googleVoiceSel">
+          <button type="button" class="csel-trigger">
+            <span class="csel-value"></span>
+            <span class="csel-caret">▾</span>
+          </button>
+          <input type="hidden" id="googleVoiceSelect">
+        </div>
+        <button class="btn btn-outline btn-block" id="previewGoogleVoiceBtn" style="margin-top:8px">🔊 Preview Google voice</button>
+      </div>
+
       <button class="btn btn-outline btn-block" id="resetProgressBtn">🗑️ Reset progress</button>
-      <button class="btn btn-outline btn-block" id="voiceDebugBtn">🔍 Show all detected voices</button>
       <button class="btn btn-outline btn-block" id="closeDrawerBtn">Close</button>
     </aside>
 
@@ -237,17 +259,17 @@
 
   </div>
 
-  <script src="js/config.js?v=18"></script>
-  <script src="js/progress.js?v=18"></script>
-  <script src="js/state.js?v=18"></script>
-  <script src="js/utils.js?v=18"></script>
-  <script src="js/data.js?v=18"></script>
-  <script src="js/modal.js?v=18"></script>
-  <script src="js/csel.js?v=18"></script>
-  <script src="js/tts.js?v=18"></script>
-  <script src="js/recorder.js?v=18"></script>
-  <script src="js/speech.js?v=18"></script>
-  <script src="js/ui.js?v=18"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/config.js?v=19"></script>
+  <script src="js/progress.js?v=19"></script>
+  <script src="js/state.js?v=19"></script>
+  <script src="js/utils.js?v=19"></script>
+  <script src="js/data.js?v=19"></script>
+  <script src="js/modal.js?v=19"></script>
+  <script src="js/csel.js?v=19"></script>
+  <script src="js/tts.js?v=19"></script>
+  <script src="js/recorder.js?v=19"></script>
+  <script src="js/speech.js?v=19"></script>
+  <script src="js/ui.js?v=19"></script>
+  <script src="js/app.js?v=19"></script>
 </body>
 </html>

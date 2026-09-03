@@ -20,7 +20,9 @@ APP.progress = (function () {
     randomOrder: true,
     accent: 'US',
     rate: 1.0,
-    voiceURI: null
+    voiceURI: null,
+    googleApiKey: '',
+    googleVoice: ''
   }, loadJSON(PREFS_KEY, {}));
 
   function loadJSON(key, fallback) {
@@ -87,6 +89,12 @@ APP.progress = (function () {
   function getVoiceURI() { return prefs.voiceURI || null; }
   function setVoiceURI(v) { prefs.voiceURI = v || null; save(PREFS_KEY, prefs); }
 
+  function getGoogleApiKey() { return prefs.googleApiKey || ''; }
+  function setGoogleApiKey(v) { prefs.googleApiKey = v || ''; save(PREFS_KEY, prefs); }
+
+  function getGoogleVoice() { return prefs.googleVoice || ''; }
+  function setGoogleVoice(v) { prefs.googleVoice = v || ''; save(PREFS_KEY, prefs); }
+
   return {
     isMastered: isMastered,
     markMastered: markMastered,
@@ -103,6 +111,10 @@ APP.progress = (function () {
     getRate: getRate,
     setRate: setRate,
     getVoiceURI: getVoiceURI,
-    setVoiceURI: setVoiceURI
+    setVoiceURI: setVoiceURI,
+    getGoogleApiKey: getGoogleApiKey,
+    setGoogleApiKey: setGoogleApiKey,
+    getGoogleVoice: getGoogleVoice,
+    setGoogleVoice: setGoogleVoice
   };
 })();

@@ -184,7 +184,9 @@
           APP.tts.speakText(q.english, {
             accent: APP.state.settings.accent,
             rate: APP.state.settings.rate,
-            voiceURI: APP.state.settings.voiceURI
+            voiceURI: APP.state.settings.voiceURI,
+            googleApiKey: APP.state.settings.googleApiKey,
+            googleVoice: APP.state.settings.googleVoice
           });
         }
         break;
@@ -242,11 +244,18 @@
     var closeBtn = document.getElementById('closeDrawerBtn');
     var speed = document.getElementById('speedSelect');
     var voice = document.getElementById('voiceSelect');
+    var googleKeyInput = document.getElementById('googleApiKeyInput');
+    var googleVoiceField = document.getElementById('googleVoiceField');
+    var googleVoiceSel = document.getElementById('googleVoiceSelect');
+    var previewGoogleBtn = document.getElementById('previewGoogleVoiceBtn');
 
     speed.value = String(APP.state.settings.rate);
+    googleKeyInput.value = APP.state.settings.googleApiKey || '';
 
     function open() {
-      populateVoices();  // voices load asynchronously; refresh each time
+      populateVoices();
+      populateGoogleVoices();
+      updateGoogleVisibility();
       drawer.hidden = false; backdrop.hidden = false;
     }
     function close() {
@@ -270,11 +279,32 @@
       previewVoice();
     });
 
+    googleKeyInput.addEventListener('change', function () {
+      var k = (googleKeyInput.value || '').trim();
+      APP.state.settings.googleApiKey = k;
+      APP.progress.setGoogleApiKey(k);
+      updateGoogleVisibility();
+    });
+    googleVoiceSel.addEventListener('change', function () {
+      var v = googleVoiceSel.value || '';
+      APP.state.settings.googleVoice = v;
+      APP.progress.setGoogleVoice(v);
+      previewVoice();
+    });
+    previewGoogleBtn.addEventListener('click', previewVoice);
+
+    function updateGoogleVisibility() {
+      var hasKey = !!(APP.state.settings.googleApiKey || '').trim();
+      googleVoiceField.hidden = !hasKey;
+    }
+
     function previewVoice() {
       APP.tts.speakText('Hello. This is a preview of the English voice.', {
         accent: APP.state.settings.accent,
         rate: APP.state.settings.rate,
-        voiceURI: APP.state.settings.voiceURI
+        voiceURI: APP.state.settings.voiceURI,
+        googleApiKey: APP.state.settings.googleApiKey,
+        googleVoice: APP.state.settings.googleVoice
       });
     }
 
@@ -288,6 +318,15 @@
       );
       var currentStillAvailable = current && voices.some(function (v) { return v.voiceURI === current; });
       APP.csel.setOptions('voiceSel', 'voiceSelect', options, currentStillAvailable ? current : '');
+    }
+
+    function populateGoogleVoices() {
+      var voices = APP.tts.listGoogleVoices();
+      var current = APP.state.settings.googleVoice || '';
+      var options = [{ value: '', label: 'Off (use device voice)' }].concat(
+        voices.map(function (v) { return { value: v.id, label: v.label }; })
+      );
+      APP.csel.setOptions('googleVoiceSel', 'googleVoiceSelect', options, current);
     }
 
     // iOS Safari may reveal Enhanced/Premium voices only after the first
@@ -309,26 +348,6 @@
         APP.progress.resetAll();
         close();
         APP.modal.notice({ icon: '✅', title: 'Progress reset', message: 'All mastered marks have been cleared.' });
-      });
-    });
-
-    document.getElementById('voiceDebugBtn').addEventListener('click', function () {
-      var voices = APP.tts.getAvailableVoices();
-      var en = voices.filter(function (v) {
-        return v.lang && v.lang.toLowerCase().indexOf('en') === 0;
-      });
-      var rows = en.map(function (v) {
-        return '<div style="font-size:12px;margin-bottom:6px;word-break:break-all">' +
-          '<strong>' + v.name + '</strong> (' + v.lang + ')' +
-          (v.localService ? ' · on-device' : ' · network') + '<br>' +
-          '<span class="muted">' + v.voiceURI + '</span></div>';
-      }).join('');
-      APP.modal.notice({
-        icon: '🔍',
-        title: en.length + ' English voices detected',
-        html: rows || '<div class="muted">No English voices found.</div>',
-        scrollable: true,
-        okLabel: 'Close'
       });
     });
   }

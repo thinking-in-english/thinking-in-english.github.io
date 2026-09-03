@@ -22,7 +22,9 @@ APP.state = {
   settings: {
     accent: APP.progress ? APP.progress.getAccent() : APP.config.defaultAccent,
     rate: APP.progress ? APP.progress.getRate() : APP.config.defaultRate,
-    voiceURI: APP.progress ? APP.progress.getVoiceURI() : null
+    voiceURI: APP.progress ? APP.progress.getVoiceURI() : null,
+    googleApiKey: APP.progress ? APP.progress.getGoogleApiKey() : '',
+    googleVoice: APP.progress ? APP.progress.getGoogleVoice() : ''
   }
 };
 
