@@ -630,19 +630,18 @@ APP.ui = (function () {
     var hint = q.moreInfo
       ? '<div class="muted" style="font-size:12px;margin-top:6px">💡 Tap Show Answer to read more.</div>'
       : '';
+    // Only show what was heard when it wasn't a perfect match, so the user can
+    // see which words to work on.
     var heard = r.recognizedText ? String(r.recognizedText).trim() : '';
-    var heardLine = heard
+    var heardLine = (heard && r.matchedCount < r.expectedCount)
       ? '<div style="margin-top:6px;font-size:13px">Heard: "<em>' + escapeHtml(heard) + '</em>"</div>'
-      : '';
-    var missLine = (r.missing && r.missing.length)
-      ? '<div class="muted" style="font-size:12px;margin-top:4px">Missed: ' + escapeHtml(r.missing.join(', ')) + '</div>'
       : '';
     box.innerHTML =
       '<div class="sr-head">✓ Correct!</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' words recognized.</div>' +
       heardLine +
-      missLine +
-      '<div style="margin-top:6px;font-weight:600">' + escapeHtml(q.english) + '</div>' +
+      '<div class="muted" style="font-size:12px;margin-top:6px">Correct answer</div>' +
+      '<div style="margin-top:2px;font-weight:600">' + escapeHtml(q.english) + '</div>' +
       hint;
   }
 
