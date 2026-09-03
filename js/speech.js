@@ -15,18 +15,11 @@ APP.speech = (function () {
 
   function isSupported() { return supported; }
 
-  // Force-stop any in-flight recognition so the browser releases the mic.
-  // iOS Safari can ignore a single abort(), so we detach handlers and call
-  // both stop() and abort().
+  // Stop any in-flight recognition (used when the app is backgrounded).
   function abort() {
     if (!activeRecog) { return; }
-    var r = activeRecog;
+    try { activeRecog.abort(); } catch (e) {}
     activeRecog = null;
-    try { r.onresult = null; } catch (e) {}
-    try { r.onerror = null; } catch (e) {}
-    try { r.onend = null; } catch (e) {}
-    try { r.stop(); } catch (e) {}
-    try { r.abort(); } catch (e) {}
   }
 
   /**
