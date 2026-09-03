@@ -87,10 +87,11 @@ APP.speech = (function () {
         activeRecog = recog;
         recog.start();
         // Safety net: if the engine never fires any event (known iOS bug on
-        // first run), release and reject after 12s so the mic never lingers.
+        // first run) or the user says nothing, release and reject after 10s
+        // so the mic never lingers.
         watchdog = setTimeout(function () {
           done(reject, new Error('no-speech'));
-        }, 12000);
+        }, 10000);
       } catch (e) {
         activeRecog = null;
         done(reject, e);

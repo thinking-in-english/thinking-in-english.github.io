@@ -640,8 +640,7 @@ APP.ui = (function () {
       '<div class="sr-head">✓ Correct!</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' words recognized.</div>' +
       heardLine +
-      '<div class="muted" style="font-size:12px;margin-top:6px">Correct answer</div>' +
-      '<div style="margin-top:2px;font-weight:600">' + escapeHtml(q.english) + '</div>' +
+      '<div style="margin-top:6px;font-weight:600">Correct answer: ' + escapeHtml(q.english) + '</div>' +
       hint;
   }
 
