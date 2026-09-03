@@ -149,25 +149,51 @@ APP.tts = (function () {
     if (!supported || !text) { return false; }
     options = options || {};
 
-    var utter = new SpeechSynthesisUtterance(text);
-    utter.rate = options.rate || 1.0;
     var voice = findVoice(options.voiceURI) || getPreferredEnglishVoice(options.accent || 'US');
-    if (voice) {
-      utter.voice = voice;
-      utter.lang = voice.lang;
-    } else {
-      utter.lang = APP.config.accentLang[options.accent] || 'en-US';
+    var lang = voice ? voice.lang : (APP.config.accentLang[options.accent] || 'en-US');
+    var rate = options.rate || 1.0;
+
+    // Split at sentence/clause punctuation so the engine inserts a natural
+    // pause between chunks — otherwise many voices read straight through
+    // commas and periods, sounding flat and robotic.
+    var chunks = splitIntoClauses(text);
+
+    function makeUtter(str) {
+      var u = new SpeechSynthesisUtterance(str);
+      u.rate = rate;
+      if (voice) { u.voice = voice; }
+      u.lang = lang;
+      return u;
     }
+
+    function speakAll() {
+      chunks.forEach(function (c) { window.speechSynthesis.speak(makeUtter(c)); });
+    }
+
     // Chrome bug: speak() right after cancel() sometimes never fires. Only
     // delay when we actually need to interrupt, otherwise call directly so
     // iOS Safari keeps the user-gesture link and plays on the first press.
     if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
       stopSpeech();
-      setTimeout(function () { window.speechSynthesis.speak(utter); }, 60);
+      setTimeout(speakAll, 60);
     } else {
-      window.speechSynthesis.speak(utter);
+      speakAll();
     }
     return true;
+  }
+
+  /**
+   * Break text into speakable clauses, keeping the trailing punctuation so
+   * intonation is preserved. Queued as separate utterances, the boundaries
+   * become audible pauses.
+   */
+  function splitIntoClauses(text) {
+    var parts = String(text).match(/[^.!?;,:]+[.!?;,:]*\s*/g);
+    if (!parts) { return [String(text)]; }
+    var chunks = parts
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s.length > 0; });
+    return chunks.length ? chunks : [String(text)];
   }
 
   return {
