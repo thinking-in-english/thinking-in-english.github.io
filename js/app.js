@@ -247,7 +247,6 @@
     var googleKeyInput = document.getElementById('googleApiKeyInput');
     var googleVoiceField = document.getElementById('googleVoiceField');
     var googleVoiceSel = document.getElementById('googleVoiceSelect');
-    var previewGoogleBtn = document.getElementById('previewGoogleVoiceBtn');
 
     speed.value = String(APP.state.settings.rate);
     googleKeyInput.value = APP.state.settings.googleApiKey || '';
@@ -291,7 +290,6 @@
       APP.progress.setGoogleVoice(v);
       previewVoice();
     });
-    previewGoogleBtn.addEventListener('click', previewVoice);
 
     function updateGoogleVisibility() {
       var hasKey = !!(APP.state.settings.googleApiKey || '').trim();
