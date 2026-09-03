@@ -8,16 +8,29 @@ APP.tts = (function () {
 
   var supported = 'speechSynthesis' in window;
   var voicesCache = [];
+  var voicesChangedCb = null;
 
   function refreshVoices() {
     if (!supported) { return; }
     voicesCache = window.speechSynthesis.getVoices() || [];
   }
 
+  // Let callers (e.g. the settings dropdown) react when the voice list grows.
+  // iOS Safari often reveals Enhanced/Premium voices only after the first
+  // utterance, so the list can change after the app has already loaded.
+  function onVoicesChanged(cb) { voicesChangedCb = cb; }
+
+  function notifyVoicesChanged() {
+    refreshVoices();
+    if (typeof voicesChangedCb === 'function') {
+      try { voicesChangedCb(); } catch (e) {}
+    }
+  }
+
   if (supported) {
     refreshVoices();
     // Voices load asynchronously on many browsers.
-    window.speechSynthesis.onvoiceschanged = refreshVoices;
+    window.speechSynthesis.onvoiceschanged = notifyVoicesChanged;
   }
 
   function isSupported() { return supported; }
@@ -179,6 +192,9 @@ APP.tts = (function () {
     } else {
       speakAll();
     }
+    // iOS Safari may only expose Enhanced/Premium voices after the first
+    // utterance — re-read the list shortly after so the picker can update.
+    setTimeout(notifyVoicesChanged, 400);
     return true;
   }
 
@@ -204,6 +220,7 @@ APP.tts = (function () {
     getVoiceLabel: getVoiceLabel,
     findVoice: findVoice,
     speakText: speakText,
-    stopSpeech: stopSpeech
+    stopSpeech: stopSpeech,
+    onVoicesChanged: onVoicesChanged
   };
 })();

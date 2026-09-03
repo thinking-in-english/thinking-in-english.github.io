@@ -290,6 +290,12 @@
       APP.csel.setOptions('voiceSel', 'voiceSelect', options, currentStillAvailable ? current : '');
     }
 
+    // iOS Safari may reveal Enhanced/Premium voices only after the first
+    // utterance; re-populate the picker live when the voice list changes.
+    APP.tts.onVoicesChanged(function () {
+      if (!drawer.hidden) { populateVoices(); }
+    });
+
     document.getElementById('resetProgressBtn').addEventListener('click', function () {
       APP.modal.confirm({
         icon: '🗑️',
