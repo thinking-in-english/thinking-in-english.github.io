@@ -636,10 +636,14 @@ APP.ui = (function () {
     var heardLine = (heard && r.matchedCount < r.expectedCount)
       ? '<div style="margin-top:6px;font-size:13px">Heard: "<em>' + escapeHtml(heard) + '</em>"</div>'
       : '';
+    var missLine = (r.missing && r.missing.length)
+      ? '<div class="muted" style="font-size:12px;margin-top:4px">Missed: ' + escapeHtml(r.missing.join(', ')) + '</div>'
+      : '';
     box.innerHTML =
       '<div class="sr-head">✓ Correct!</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' words recognized.</div>' +
       heardLine +
+      missLine +
       '<div style="margin-top:6px;font-weight:600">Correct answer: ' + escapeHtml(q.english) + '</div>' +
       hint;
   }
@@ -654,8 +658,7 @@ APP.ui = (function () {
     box.innerHTML =
       '<div class="sr-head">' + head + '</div>' +
       '<div>' + r.matchedCount + ' / ' + r.expectedCount + ' expected words recognized.</div>' +
-      (heard ? '<div style="margin-top:6px;font-size:13px">Heard: "<em>' + escapeHtml(heard) + '</em>"</div>' : '') +
-      '<div class="muted" style="font-size:12px;margin-top:6px">Speech match only — not a pronunciation score.</div>';
+      (heard ? '<div style="margin-top:6px;font-size:13px">Heard: "<em>' + escapeHtml(heard) + '</em>"</div>' : '');
   }
 
   // ---- Small DOM helpers ---------------------------------------------------
