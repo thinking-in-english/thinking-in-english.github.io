@@ -51,7 +51,7 @@ APP.speech = (function () {
         var settled = false;
         var watchdog = null;
 
-        function finish(fn, arg) {
+        function finish(fn, arg, forceStop) {
           if (settled) { return; }
           settled = true;
           if (watchdog) { clearTimeout(watchdog); watchdog = null; }
@@ -59,8 +59,13 @@ APP.speech = (function () {
           try { recog.onresult = null; } catch (e) {}
           try { recog.onerror = null; } catch (e) {}
           try { recog.onend = null; } catch (e) {}
-          try { recog.stop(); } catch (e) {}
-          try { recog.abort(); } catch (e) {}
+          // Only force-abort when interrupted externally. On a natural onresult
+          // let iOS end the session on its own — hard-aborting seems to leave
+          // the mic pipeline in a low-gain state for the next attempt.
+          if (forceStop) {
+            try { recog.stop(); } catch (e) {}
+            try { recog.abort(); } catch (e) {}
+          }
           fn(arg);
         }
 
@@ -74,36 +79,27 @@ APP.speech = (function () {
               best = r;
             }
           }
-          finish(resolve, best);
+          finish(resolve, best, false);
         };
         recog.onerror = function (event) {
-          var code = event.error || 'speech-error';
-          // iOS Safari 'no-speech' on the first attempt is often the mic
-          // warm-up bug — retry once silently before reporting.
-          if ((code === 'no-speech' || code === 'aborted') && !retried) {
-            retried = true;
-            settled = true;
-            if (watchdog) { clearTimeout(watchdog); watchdog = null; }
-            if (activeRecog === recog) { activeRecog = null; }
-            try { recog.abort(); } catch (e) {}
-            setTimeout(startAttempt, 250);
-            return;
-          }
-          finish(reject, new Error(code));
+          finish(reject, new Error(event.error || 'speech-error'), true);
         };
         recog.onend = function () {
-          // If recognition ended within ~1.5s of start without a result/error,
-          // treat it as a warm-up miss and silently retry once.
+          // If recognition ended within ~800ms of start with no result, it's
+          // almost certainly the iOS mic warm-up bug — silently retry once.
           var elapsed = Date.now() - startedAt;
-          if (!retried && elapsed < 1500) {
+          if (!retried && elapsed < 800) {
             retried = true;
             settled = true;
             if (watchdog) { clearTimeout(watchdog); watchdog = null; }
             if (activeRecog === recog) { activeRecog = null; }
-            setTimeout(startAttempt, 250);
+            // Wait long enough for iOS to fully release the audio session
+            // before starting a fresh recognition; a short delay causes
+            // the next attempt to run with degraded mic gain.
+            setTimeout(startAttempt, 700);
             return;
           }
-          finish(reject, new Error('no-speech'));
+          finish(reject, new Error('no-speech'), false);
         };
 
         try {
@@ -112,11 +108,11 @@ APP.speech = (function () {
           recog.start();
           // Safety net: release and reject after 10s so the mic never lingers.
           watchdog = setTimeout(function () {
-            finish(reject, new Error('no-speech'));
+            finish(reject, new Error('no-speech'), true);
           }, 10000);
         } catch (e) {
           activeRecog = null;
-          finish(reject, e);
+          finish(reject, e, true);
         }
       }
 
