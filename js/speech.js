@@ -90,6 +90,8 @@ APP.speech = (function () {
       var settled = false;
       var hasSpeech = false;
       var recognizedSoFar = '';
+      var priorText = ''; // accumulated from earlier sessions if iOS cuts one short mid-sentence
+      var lastSpeechAt = 0;
       var silenceTimer = null;
       var hardCapTimer = null;
       var firstStartedAt = 0;
@@ -142,11 +144,13 @@ APP.speech = (function () {
 
         recog.onresult = function (event) {
           hasSpeech = true;
+          lastSpeechAt = Date.now();
           var parts = [];
           for (var i = 0; i < event.results.length; i++) {
             parts.push(event.results[i][0].transcript);
           }
-          recognizedSoFar = parts.join(' ');
+          var thisSessionText = parts.join(' ');
+          recognizedSoFar = (priorText ? priorText + ' ' : '') + thisSessionText;
           scheduleSilenceCheck();
         };
 
@@ -155,15 +159,34 @@ APP.speech = (function () {
           var code = event.error || 'speech-error';
           // Explicit abort (e.g. app backgrounded) — stop for good, no retry.
           if (code === 'aborted') { finish(reject, new Error(code)); return; }
-          if (hasSpeech) { finalizeWithHeard(); return; }
-          if (code !== 'no-speech') { finish(reject, new Error(code)); return; }
+          var fatal = (code === 'not-allowed' || code === 'service-not-allowed' ||
+                       code === 'network' || code === 'audio-capture');
+          if (hasSpeech) {
+            // A fatal error won't be fixed by retrying — score what we have.
+            // Otherwise (e.g. transient 'no-speech') let onend below decide.
+            if (fatal) { finalizeWithHeard(); }
+            return;
+          }
+          if (fatal) { finish(reject, new Error(code)); return; }
           // 'no-speech' with nothing captured yet — let onend decide whether
           // to retry (still within the reading-time grace window).
         };
 
         recog.onend = function () {
           if (settled) { return; }
-          if (hasSpeech) { finalizeWithHeard(); return; }
+          if (hasSpeech) {
+            // iOS sometimes ends the session mid-sentence (well before our
+            // own silence timer would fire) — that's a cutoff bug, not the
+            // user finishing. Only finalize if a real pause has elapsed;
+            // otherwise keep the accumulated text and start a fresh session.
+            if (Date.now() - lastSpeechAt >= SILENCE_MS - 150) {
+              finalizeWithHeard();
+            } else {
+              priorText = recognizedSoFar;
+              setTimeout(startAttempt, 150);
+            }
+            return;
+          }
           // Hasn't started talking yet — likely still reading the prompt.
           // Restart a fresh session if there's still grace time left.
           if (Date.now() - firstStartedAt < START_GRACE_MS) {
