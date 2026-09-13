@@ -380,6 +380,11 @@ APP.ui = (function () {
   function nextQuestion() {
     var s = APP.state.session;
     if (!s) { return; }
+    // Any TTS from the current question must stop before rendering the next
+    // one, otherwise it keeps playing while the new question loads and can
+    // still be echoing into the mic when Speak & Check starts.
+    APP.tts.stopSpeech();
+    if (APP.speech && APP.speech.markNeedsWarmup) { APP.speech.markNeedsWarmup(); }
     if (isLastQuestion()) {
       completeSession();
       return;
@@ -441,6 +446,9 @@ APP.ui = (function () {
     if (!s) { return; }
     APP.tts.stopSpeech();
     APP.recorder.cleanup();
+    // Any TTS just heard on the answer page put the audio session into
+    // playback mode; force a re-prime before the next Speak & Check.
+    if (APP.speech && APP.speech.markNeedsWarmup) { APP.speech.markNeedsWarmup(); }
     s.revealed = false;
     document.getElementById('answerBlock').hidden = true;
     document.getElementById('preCheckBlock').hidden = false;
