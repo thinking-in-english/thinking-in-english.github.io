@@ -39,62 +39,82 @@ APP.speech = (function () {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
-      var recog = new SR();
-      recog.lang = APP.config.accentLang[accent] || 'en-US';
-      recog.interimResults = false;
-      // Ask for more guesses so we can pick the one that best matches the target.
-      recog.maxAlternatives = 5;
+      var retried = false;
 
-      var settled = false;
-      var watchdog = null;
-      function done(fn, arg) {
-        if (settled) { return; }
-        settled = true;
-        if (watchdog) { clearTimeout(watchdog); watchdog = null; }
-        // Release the mic immediately — like tapping Stop in a recorder app —
-        // instead of waiting for iOS to end the session on its own.
-        if (activeRecog === recog) { activeRecog = null; }
-        try { recog.onresult = null; } catch (e) {}
-        try { recog.onerror = null; } catch (e) {}
-        try { recog.onend = null; } catch (e) {}
-        try { recog.stop(); } catch (e) {}
-        try { recog.abort(); } catch (e) {}
-        fn(arg);
-      }
+      function startRecog() {
+        var recog = new SR();
+        recog.lang = APP.config.accentLang[accent] || 'en-US';
+        recog.interimResults = false;
+        // Ask for more guesses so we can pick the one that best matches the target.
+        recog.maxAlternatives = 5;
 
-      recog.onresult = function (event) {
-        var alts = event.results[0];
-        var best = null;
-        for (var i = 0; i < alts.length; i++) {
-          var r = compareWords(targetText, alts[i].transcript);
-          if (!best || r.matchedCount > best.matchedCount ||
-              (r.matchedCount === best.matchedCount && r.status === 'ok')) {
-            best = r;
-          }
+        var settled = false;
+        var watchdog = null;
+        var startedAt = 0;
+
+        function done(fn, arg) {
+          if (settled) { return; }
+          settled = true;
+          if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+          // Release the mic immediately — like tapping Stop in a recorder app —
+          // instead of waiting for iOS to end the session on its own.
+          if (activeRecog === recog) { activeRecog = null; }
+          try { recog.onresult = null; } catch (e) {}
+          try { recog.onerror = null; } catch (e) {}
+          try { recog.onend = null; } catch (e) {}
+          try { recog.stop(); } catch (e) {}
+          try { recog.abort(); } catch (e) {}
+          fn(arg);
         }
-        done(resolve, best);
-      };
-      recog.onerror = function (event) {
-        done(reject, new Error(event.error || 'speech-error'));
-      };
-      recog.onend = function () {
-        // iOS Safari sometimes fires onend without onresult/onerror on the
-        // first run after granting permission. Surface it as no-speech.
-        done(reject, new Error('no-speech'));
-      };
 
-      try {
-        activeRecog = recog;
-        recog.start();
-        // Safety net: if the engine never fires any event (known iOS bug on
-        // first run), release and reject after 12s so the mic never lingers.
-        watchdog = setTimeout(function () {
+        recog.onresult = function (event) {
+          var alts = event.results[0];
+          var best = null;
+          for (var i = 0; i < alts.length; i++) {
+            var r = compareWords(targetText, alts[i].transcript);
+            if (!best || r.matchedCount > best.matchedCount ||
+                (r.matchedCount === best.matchedCount && r.status === 'ok')) {
+              best = r;
+            }
+          }
+          done(resolve, best);
+        };
+        recog.onerror = function (event) {
+          done(reject, new Error(event.error || 'speech-error'));
+        };
+        recog.onend = function () {
+          // If recognition ended in under a second with no result, iOS almost
+          // certainly missed the mic warm-up. Retry once silently before
+          // reporting "nothing heard".
+          if (settled) { return; }
+          if (!retried && Date.now() - startedAt < 1000) {
+            retried = true;
+            settled = true;
+            if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+            if (activeRecog === recog) { activeRecog = null; }
+            try { recog.abort(); } catch (e) {}
+            setTimeout(startRecog, 500);
+            return;
+          }
           done(reject, new Error('no-speech'));
-        }, 12000);
-      } catch (e) {
-        activeRecog = null;
-        done(reject, e);
+        };
+
+        try {
+          activeRecog = recog;
+          startedAt = Date.now();
+          recog.start();
+          // Safety net: if the engine never fires any event (known iOS bug on
+          // first run), release and reject after 12s so the mic never lingers.
+          watchdog = setTimeout(function () {
+            done(reject, new Error('no-speech'));
+          }, 12000);
+        } catch (e) {
+          activeRecog = null;
+          done(reject, e);
+        }
       }
+
+      startRecog();
     });
   }
 
