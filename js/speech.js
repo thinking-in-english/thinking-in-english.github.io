@@ -37,17 +37,20 @@ APP.speech = (function () {
   }
 
   /**
-   * Briefly acquire and release the raw mic via getUserMedia. This forces
-   * WebKit to re-negotiate the audio route at a lower level than
-   * SpeechRecognition does on its own, which plain SpeechRecognition priming
-   * doesn't always achieve. Never rejects — best effort only.
+  /**
+   * Hold the raw mic open for ~800ms via getUserMedia, then release. Just
+   * grabbing and immediately stopping isn't enough — iOS needs measurable
+   * time to reconfigure its audio session out of playback mode (which is
+   * what a preceding Listen/TTS puts it into). Never rejects — best effort.
    */
   function primeGetUserMedia() {
     return new Promise(function (resolve) {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { resolve(); return; }
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-        stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
-        resolve();
+        setTimeout(function () {
+          stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+          resolve();
+        }, 800);
       }).catch(function () { resolve(); });
     });
   }
@@ -69,8 +72,8 @@ APP.speech = (function () {
         recog.start();
         setTimeout(function () {
           try { recog.abort(); } catch (e) {}
-          setTimeout(finishPriming, 150);
-        }, 250);
+          setTimeout(finishPriming, 300);
+        }, 400);
       } catch (e) {
         finishPriming();
       }
@@ -154,11 +157,13 @@ APP.speech = (function () {
       function finalizeWithHeard() {
         var text = recognizedSoFar.trim();
         if (!text) { finish(reject, new Error('no-speech')); return; }
-        // A real transcript came back — the audio route is working again, so
-        // stop priming future attempts. (If it was still stale we'd expect
-        // an error or garbage/empty text, not a normal finalize.)
-        needsWarmup = false;
-        finish(resolve, compareWords(targetText, text));
+        var result = compareWords(targetText, text);
+        // Only clear the warmup flag when the transcript is a plausible match
+        // for what the user was asked to say. A wildly wrong "heard" (e.g.
+        // TTS echo, garbage words) means the audio route is still stale and
+        // the next attempt must re-prime.
+        if (result.status === 'ok') { needsWarmup = false; }
+        finish(resolve, result);
       }
 
       // Reset every time new speech comes in — user is only "done" once this
