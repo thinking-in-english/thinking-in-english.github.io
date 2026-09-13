@@ -39,7 +39,12 @@ APP.speech = (function () {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
-      var retried = false;
+      // Total time the user is allowed to take before we give up — covers
+      // reading a long Vietnamese prompt before they start speaking. The
+      // browser's own recognizer gives up after a few seconds of silence,
+      // so we silently restart it underneath until this budget runs out.
+      var TOTAL_BUDGET_MS = 20000;
+      var firstStartedAt = Date.now();
 
       function startRecog() {
         var recog = new SR();
@@ -50,7 +55,6 @@ APP.speech = (function () {
 
         var settled = false;
         var watchdog = null;
-        var startedAt = 0;
 
         function done(fn, arg) {
           if (settled) { return; }
@@ -67,6 +71,22 @@ APP.speech = (function () {
           fn(arg);
         }
 
+        // Silently restart (no result yet, still within budget) instead of
+        // reporting failure — keeps "Listening…" up while giving the user
+        // more time to read + start speaking.
+        function retryOrFail(err) {
+          if (settled) { return; }
+          if (Date.now() - firstStartedAt < TOTAL_BUDGET_MS) {
+            settled = true;
+            if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+            if (activeRecog === recog) { activeRecog = null; }
+            try { recog.abort(); } catch (e) {}
+            setTimeout(startRecog, 400);
+            return;
+          }
+          done(reject, err);
+        }
+
         recog.onresult = function (event) {
           var alts = event.results[0];
           var best = null;
@@ -80,34 +100,23 @@ APP.speech = (function () {
           done(resolve, best);
         };
         recog.onerror = function (event) {
-          done(reject, new Error(event.error || 'speech-error'));
+          var code = event.error || 'speech-error';
+          // 'no-speech' just means the browser's silence timer ran out before
+          // the user spoke — not a real failure, so retry within budget.
+          if (code === 'no-speech') { retryOrFail(new Error(code)); return; }
+          done(reject, new Error(code));
         };
         recog.onend = function () {
-          // If recognition ended in under a second with no result, iOS almost
-          // certainly missed the mic warm-up. Retry once silently before
-          // reporting "nothing heard".
-          if (settled) { return; }
-          if (!retried && Date.now() - startedAt < 1000) {
-            retried = true;
-            settled = true;
-            if (watchdog) { clearTimeout(watchdog); watchdog = null; }
-            if (activeRecog === recog) { activeRecog = null; }
-            try { recog.abort(); } catch (e) {}
-            setTimeout(startRecog, 500);
-            return;
-          }
-          done(reject, new Error('no-speech'));
+          retryOrFail(new Error('no-speech'));
         };
 
         try {
           activeRecog = recog;
-          startedAt = Date.now();
           recog.start();
-          // Safety net: if the engine never fires any event (known iOS bug on
-          // first run), release and reject after 12s so the mic never lingers.
+          // Per-attempt safety net in case the engine never fires any event.
           watchdog = setTimeout(function () {
-            done(reject, new Error('no-speech'));
-          }, 12000);
+            retryOrFail(new Error('no-speech'));
+          }, 8000);
         } catch (e) {
           activeRecog = null;
           done(reject, e);
