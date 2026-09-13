@@ -570,24 +570,6 @@ APP.ui = (function () {
       return;
     }
 
-    // Make sure any TTS playback (Listen, voice preview) is fully stopped —
-    // otherwise the mic can pick up the tail of that audio as an echo and
-    // the recognizer "hears" fragments of the answer instead of the user.
-    APP.tts.stopSpeech();
-    // Re-assert the play-and-record audio session hint in case the TTS
-    // playback switched it back to playback-only.
-    try {
-      if (navigator.audioSession) { navigator.audioSession.type = 'play-and-record'; }
-    } catch (e) {}
-
-    var btn = document.getElementById('speakCheckBtn');
-    var box = document.getElementById('preCheckResult');
-    btn.disabled = true;
-    btn.textContent = '🎧 Listening…';
-    box.hidden = false;
-    box.className = 'sr-result';
-    box.innerHTML = 'Speak the English sentence now.';
-
     // TEMP debug trace so we can see exactly what the recognizer is doing on
     // the user's device — remove once the accuracy issue is diagnosed.
     var debugStartedAt = Date.now();
@@ -601,7 +583,32 @@ APP.ui = (function () {
       if (!el) { return; }
       el.textContent = debugLines.join('\n');
     }
+
+    // Make sure any TTS playback (Listen, voice preview) is fully stopped —
+    // otherwise the mic can pick up the tail of that audio as an echo and
+    // the recognizer "hears" fragments of the answer instead of the user.
+    APP.tts.stopSpeech();
+    // Re-assert the play-and-record audio session hint in case the TTS
+    // playback switched it back to playback-only.
+    onDebug('navigator.audioSession ' + (navigator.audioSession ? 'SUPPORTED' : 'not supported'));
+    try {
+      if (navigator.audioSession) {
+        navigator.audioSession.type = 'play-and-record';
+        onDebug('audioSession.type set to play-and-record (now: ' + navigator.audioSession.type + ')');
+      }
+    } catch (e) {
+      onDebug('audioSession.type threw: ' + e.message);
+    }
+
+    var btn = document.getElementById('speakCheckBtn');
+    var box = document.getElementById('preCheckResult');
+    btn.disabled = true;
+    btn.textContent = '🎧 Listening…';
+    box.hidden = false;
+    box.className = 'sr-result';
+    box.innerHTML = 'Speak the English sentence now.';
     ensureDebugLogEl(box);
+    renderDebugLog();
 
     // Delay after stopping any TTS so the audio route fully settles into
     // "record" mode before we start listening — helps avoid echo. Longer
