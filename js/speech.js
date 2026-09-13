@@ -21,6 +21,23 @@ APP.speech = (function () {
   function markNeedsWarmup() {}
   function notifyReturnedFromBackground() {}
 
+  /**
+   * Reset the audio route by briefly opening then closing the raw mic.
+   * IMPORTANT: this must run at NAVIGATION time (Back-to-question / Next),
+   * NOT right before recognition — running getUserMedia adjacent to
+   * SpeechRecognition makes them compete for the mic and wrecks accuracy.
+   * Called seconds before the user taps Speak & Check, it just nudges iOS
+   * out of the "playback" audio route left behind by a preceding Listen/TTS.
+   */
+  function resetAudioRoute() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { return; }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   // Force-stop any in-flight recognition so the browser releases the mic.
   // iOS Safari can ignore a single abort(), so we detach handlers and call
   // both stop() and abort().
@@ -274,6 +291,7 @@ APP.speech = (function () {
     compareWords: compareWords,
     abort: abort,
     notifyReturnedFromBackground: notifyReturnedFromBackground,
-    markNeedsWarmup: markNeedsWarmup
+    markNeedsWarmup: markNeedsWarmup,
+    resetAudioRoute: resetAudioRoute
   };
 })();

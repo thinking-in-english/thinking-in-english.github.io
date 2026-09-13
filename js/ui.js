@@ -384,7 +384,9 @@ APP.ui = (function () {
     // one, otherwise it keeps playing while the new question loads and can
     // still be echoing into the mic when Speak & Check starts.
     APP.tts.stopSpeech();
-    if (APP.speech && APP.speech.markNeedsWarmup) { APP.speech.markNeedsWarmup(); }
+    // Reset the audio route NOW (well before the user reaches Speak & Check)
+    // to clear the playback mode a preceding Listen left behind.
+    if (APP.speech && APP.speech.resetAudioRoute) { APP.speech.resetAudioRoute(); }
     if (isLastQuestion()) {
       completeSession();
       return;
@@ -446,9 +448,10 @@ APP.ui = (function () {
     if (!s) { return; }
     APP.tts.stopSpeech();
     APP.recorder.cleanup();
-    // Any TTS just heard on the answer page put the audio session into
-    // playback mode; force a re-prime before the next Speak & Check.
-    if (APP.speech && APP.speech.markNeedsWarmup) { APP.speech.markNeedsWarmup(); }
+    // The Listen just heard on the answer page put the audio session into
+    // playback mode; reset the route now (well before Speak & Check) so the
+    // recognizer starts from a clean record route.
+    if (APP.speech && APP.speech.resetAudioRoute) { APP.speech.resetAudioRoute(); }
     s.revealed = false;
     document.getElementById('answerBlock').hidden = true;
     document.getElementById('preCheckBlock').hidden = false;
