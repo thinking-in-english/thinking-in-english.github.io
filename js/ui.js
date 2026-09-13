@@ -570,6 +570,11 @@ APP.ui = (function () {
       return;
     }
 
+    // Make sure any TTS playback (Listen, voice preview) is fully stopped —
+    // otherwise the mic can pick up the tail of that audio as an echo and
+    // the recognizer "hears" fragments of the answer instead of the user.
+    APP.tts.stopSpeech();
+
     var btn = document.getElementById('speakCheckBtn');
     var box = document.getElementById('preCheckResult');
     btn.disabled = true;
@@ -593,25 +598,29 @@ APP.ui = (function () {
     }
     ensureDebugLogEl(box);
 
-    APP.speech.checkSpeech(q.english, APP.state.settings.accent, onDebug)
-      .then(function (r) {
-        btn.disabled = false;
-        btn.textContent = '🎤 Try Again';
-        if (r.status === 'ok') {
-          handlePreCheckCorrect(q, r);
-        } else {
-          renderPreCheckFeedback(r);
-        }
-        appendDebugLogAfterRender(debugLines);
-      })
-      .catch(function (err) {
-        btn.disabled = false;
-        btn.textContent = '🎤 Try Again';
-        box.className = 'sr-result miss';
-        box.innerHTML = '<div class="sr-head">' + speechErrorTitle(err) + '</div>' +
-                        '<div>' + speechErrorHint(err) + '</div>';
-        appendDebugLogAfterRender(debugLines);
-      });
+    // Small delay after stopping any TTS so the audio route fully settles
+    // into "record" mode before we start listening — helps avoid echo.
+    setTimeout(function () {
+      APP.speech.checkSpeech(q.english, APP.state.settings.accent, onDebug)
+        .then(function (r) {
+          btn.disabled = false;
+          btn.textContent = '🎤 Try Again';
+          if (r.status === 'ok') {
+            handlePreCheckCorrect(q, r);
+          } else {
+            renderPreCheckFeedback(r);
+          }
+          appendDebugLogAfterRender(debugLines);
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          btn.textContent = '🎤 Try Again';
+          box.className = 'sr-result miss';
+          box.innerHTML = '<div class="sr-head">' + speechErrorTitle(err) + '</div>' +
+                          '<div>' + speechErrorHint(err) + '</div>';
+          appendDebugLogAfterRender(debugLines);
+        });
+    }, 200);
   }
 
   // TEMP: on-screen debug trace helpers — remove once diagnosis is done.
