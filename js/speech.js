@@ -15,8 +15,9 @@ APP.speech = (function () {
   // iOS Safari's speech audio session can go stale after the page has been
   // backgrounded for a while (e.g. phone locked) — recognition afterwards
   // sometimes throws 'audio-capture' or, worse, silently "hears" garbage
-  // single words unrelated to what was said. A short priming session before
-  // the real one tends to reset this. See notifyReturnedFromBackground().
+  // words unrelated to what was said. Priming resets this. We keep priming
+  // before every attempt until a recognition actually succeeds, since one
+  // priming pass isn't always enough. See notifyReturnedFromBackground().
   var needsWarmup = false;
 
   function isSupported() { return supported; }
@@ -24,10 +25,27 @@ APP.speech = (function () {
   /**
    * Called by app.js when the tab regains visibility, with how long it was
    * hidden. A long hide (screen lock, app switch) marks the audio session as
-   * possibly stale so the next checkSpeech() primes it first.
+   * possibly stale so checkSpeech() primes it before every attempt until a
+   * recognition with real matched words succeeds.
    */
   function notifyReturnedFromBackground(hiddenMs) {
     if (hiddenMs > 8000) { needsWarmup = true; }
+  }
+
+  /**
+   * Briefly acquire and release the raw mic via getUserMedia. This forces
+   * WebKit to re-negotiate the audio route at a lower level than
+   * SpeechRecognition does on its own, which plain SpeechRecognition priming
+   * doesn't always achieve. Never rejects — best effort only.
+   */
+  function primeGetUserMedia() {
+    return new Promise(function (resolve) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { resolve(); return; }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+        resolve();
+      }).catch(function () { resolve(); });
+    });
   }
 
   /**
@@ -35,7 +53,7 @@ APP.speech = (function () {
    * immediately) used only to make WebKit re-establish a fresh audio route
    * before the real attempt. Never rejects — best effort only.
    */
-  function primeMic() {
+  function primeSpeechRecognition() {
     return new Promise(function (resolve) {
       if (!supported) { resolve(); return; }
       var done = false;
@@ -53,6 +71,11 @@ APP.speech = (function () {
         finishPriming();
       }
     });
+  }
+
+  /** Run both priming steps in sequence before a real attempt. */
+  function primeMic() {
+    return primeGetUserMedia().then(primeSpeechRecognition);
   }
 
   // Force-stop any in-flight recognition so the browser releases the mic.
@@ -89,7 +112,7 @@ APP.speech = (function () {
       // the browser's built-in end-of-speech guess (which is short, fixed,
       // and unreliable on iOS Safari). This lets short answers finish quickly
       // and long ones (or a long prompt read before answering) get more time.
-      var SILENCE_MS = 2500;        // pause this long after last speech = done talking
+      var SILENCE_MS = 4000;        // pause this long after last speech = done talking
       var START_GRACE_MS = 20000;   // time allowed to start talking (reading time)
       var HARD_CAP_MS = 30000;      // absolute safety net so mic never lingers
 
@@ -127,6 +150,10 @@ APP.speech = (function () {
       function finalizeWithHeard() {
         var text = recognizedSoFar.trim();
         if (!text) { finish(reject, new Error('no-speech')); return; }
+        // A real transcript came back — the audio route is working again, so
+        // stop priming future attempts. (If it was still stale we'd expect
+        // an error or garbage/empty text, not a normal finalize.)
+        needsWarmup = false;
         finish(resolve, compareWords(targetText, text));
       }
 
@@ -229,7 +256,9 @@ APP.speech = (function () {
       }
 
       if (needsWarmup) {
-        needsWarmup = false;
+        // Don't clear the flag yet — only finalizeWithHeard() on a real
+        // success does, so we keep priming every attempt until one works.
+        dbg('priming stale audio session…');
         primeMic().then(begin);
       } else {
         begin();
