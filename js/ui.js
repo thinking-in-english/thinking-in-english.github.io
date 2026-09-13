@@ -574,6 +574,11 @@ APP.ui = (function () {
     // otherwise the mic can pick up the tail of that audio as an echo and
     // the recognizer "hears" fragments of the answer instead of the user.
     APP.tts.stopSpeech();
+    // Re-assert the play-and-record audio session hint in case the TTS
+    // playback switched it back to playback-only.
+    try {
+      if (navigator.audioSession) { navigator.audioSession.type = 'play-and-record'; }
+    } catch (e) {}
 
     var btn = document.getElementById('speakCheckBtn');
     var box = document.getElementById('preCheckResult');
@@ -598,8 +603,9 @@ APP.ui = (function () {
     }
     ensureDebugLogEl(box);
 
-    // Small delay after stopping any TTS so the audio route fully settles
-    // into "record" mode before we start listening — helps avoid echo.
+    // Delay after stopping any TTS so the audio route fully settles into
+    // "record" mode before we start listening — helps avoid echo. Longer
+    // than a single frame because iOS's category switch isn't instant.
     setTimeout(function () {
       APP.speech.checkSpeech(q.english, APP.state.settings.accent, onDebug)
         .then(function (r) {
@@ -620,7 +626,7 @@ APP.ui = (function () {
                           '<div>' + speechErrorHint(err) + '</div>';
           appendDebugLogAfterRender(debugLines);
         });
-    }, 200);
+    }, 500);
   }
 
   // TEMP: on-screen debug trace helpers — remove once diagnosis is done.

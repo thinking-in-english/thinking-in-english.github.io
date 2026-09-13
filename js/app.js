@@ -6,10 +6,23 @@
 (function () {
 
   function init() {
+    setAudioSessionPlayAndRecord();
     wireStaticControls();
     wireSettings();
     wireProgress();
     loadData();
+  }
+
+  // iOS Safari (17.4+) exposes navigator.audioSession, letting a page hint
+  // that it needs BOTH playback (TTS) and recording (Speak & Check) at once.
+  // Without this, iOS silently switches the whole audio route between
+  // "playback" and "record" categories as each feature is used, and that
+  // switch is what causes the mic to occasionally fail or pick up echo of
+  // audio that was just played. No-op on browsers without the API.
+  function setAudioSessionPlayAndRecord() {
+    try {
+      if (navigator.audioSession) { navigator.audioSession.type = 'play-and-record'; }
+    } catch (e) {}
   }
 
   // ---- Data loading with loading / error / retry states --------------------
