@@ -75,9 +75,15 @@ APP.speech = (function () {
    * @param {string} accent 'US' | 'UK' — selects recognition language.
    * @return {Promise<Object>} comparison result (see below) or rejects.
    */
-  function checkSpeech(targetText, accent) {
+  function checkSpeech(targetText, accent, onDebug) {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
+
+      function dbg(msg) {
+        if (typeof onDebug === 'function') {
+          try { onDebug(msg); } catch (e) {}
+        }
+      }
 
       // We implement our own "voice activity detection" instead of relying on
       // the browser's built-in end-of-speech guess (which is short, fixed,
@@ -135,6 +141,7 @@ APP.speech = (function () {
         var recog = new SR();
         currentRecog = recog;
         recog.lang = APP.config.accentLang[accent] || 'en-US';
+        dbg('start lang=' + recog.lang);
         // Interim results let us see speech as it happens so we can run our
         // own silence timer; continuous keeps the session alive across
         // natural pauses instead of the browser ending it after the first one.
@@ -151,12 +158,14 @@ APP.speech = (function () {
           }
           var thisSessionText = parts.join(' ');
           recognizedSoFar = (priorText ? priorText + ' ' : '') + thisSessionText;
+          dbg('result: "' + thisSessionText + '" → acc: "' + recognizedSoFar + '"');
           scheduleSilenceCheck();
         };
 
         recog.onerror = function (event) {
           if (settled) { return; }
           var code = event.error || 'speech-error';
+          dbg('error: ' + code);
           // Explicit abort (e.g. app backgrounded) — stop for good, no retry.
           if (code === 'aborted') { finish(reject, new Error(code)); return; }
           var fatal = (code === 'not-allowed' || code === 'service-not-allowed' ||
@@ -179,9 +188,12 @@ APP.speech = (function () {
             // own silence timer would fire) — that's a cutoff bug, not the
             // user finishing. Only finalize if a real pause has elapsed;
             // otherwise keep the accumulated text and start a fresh session.
-            if (Date.now() - lastSpeechAt >= SILENCE_MS - 150) {
+            var gap = Date.now() - lastSpeechAt;
+            if (gap >= SILENCE_MS - 150) {
+              dbg('end: real pause (' + gap + 'ms) → finalize');
               finalizeWithHeard();
             } else {
+              dbg('end: mid-speech cutoff (' + gap + 'ms) → restart+append');
               priorText = recognizedSoFar;
               setTimeout(startAttempt, 150);
             }
@@ -190,9 +202,11 @@ APP.speech = (function () {
           // Hasn't started talking yet — likely still reading the prompt.
           // Restart a fresh session if there's still grace time left.
           if (Date.now() - firstStartedAt < START_GRACE_MS) {
+            dbg('end: no speech yet → restart (reading grace)');
             setTimeout(startAttempt, 300);
             return;
           }
+          dbg('end: grace expired, giving up');
           finish(reject, new Error('no-speech'));
         };
 
@@ -200,6 +214,7 @@ APP.speech = (function () {
           activeRecog = recog;
           recog.start();
         } catch (e) {
+          dbg('start threw: ' + e.message);
           finish(reject, e);
         }
       }
