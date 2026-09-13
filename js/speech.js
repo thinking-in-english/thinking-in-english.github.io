@@ -12,78 +12,14 @@ APP.speech = (function () {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var supported = !!SR;
   var activeRecog = null;
-  // iOS Safari's speech audio session can go stale after the page has been
-  // backgrounded for a while (e.g. phone locked) — recognition afterwards
-  // sometimes throws 'audio-capture' or, worse, silently "hears" garbage
-  // words unrelated to what was said. Priming resets this. We keep priming
-  // before every attempt until a recognition actually succeeds, since one
-  // priming pass isn't always enough. See notifyReturnedFromBackground().
-  var needsWarmup = false;
 
   function isSupported() { return supported; }
 
-  /** Mark the audio session as possibly needing a reset before the next
-   * checkSpeech() attempt (kept true across attempts until one succeeds). */
-  function markNeedsWarmup() { needsWarmup = true; }
-
-  /**
-   * Called by app.js when the tab regains visibility, with how long it was
-   * hidden. A long hide (screen lock, app switch) marks the audio session as
-   * possibly stale so checkSpeech() primes it before every attempt until a
-   * recognition with real matched words succeeds.
-   */
-  function notifyReturnedFromBackground(hiddenMs) {
-    if (hiddenMs > 8000) { markNeedsWarmup(); }
-  }
-
-  /**
-  /**
-   * Hold the raw mic open for ~800ms via getUserMedia, then release. Just
-   * grabbing and immediately stopping isn't enough — iOS needs measurable
-   * time to reconfigure its audio session out of playback mode (which is
-   * what a preceding Listen/TTS puts it into). Never rejects — best effort.
-   */
-  function primeGetUserMedia() {
-    return new Promise(function (resolve) {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { resolve(); return; }
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-        setTimeout(function () {
-          stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
-          resolve();
-        }, 800);
-      }).catch(function () { resolve(); });
-    });
-  }
-
-  /**
-   * Quick throwaway recognition session (start, then abort almost
-   * immediately) used only to make WebKit re-establish a fresh audio route
-   * before the real attempt. Never rejects — best effort only.
-   */
-  function primeSpeechRecognition() {
-    return new Promise(function (resolve) {
-      if (!supported) { resolve(); return; }
-      var done = false;
-      function finishPriming() { if (done) { return; } done = true; resolve(); }
-      try {
-        var recog = new SR();
-        recog.onend = finishPriming;
-        recog.onerror = finishPriming;
-        recog.start();
-        setTimeout(function () {
-          try { recog.abort(); } catch (e) {}
-          setTimeout(finishPriming, 300);
-        }, 400);
-      } catch (e) {
-        finishPriming();
-      }
-    });
-  }
-
-  /** Run both priming steps in sequence before a real attempt. */
-  function primeMic() {
-    return primeGetUserMedia().then(primeSpeechRecognition);
-  }
+  // No-ops kept for callers that still invoke them; priming via getUserMedia
+  // was found to DEGRADE recognition on iOS (it competes with the recognizer
+  // for the mic), so we no longer do it.
+  function markNeedsWarmup() {}
+  function notifyReturnedFromBackground() {}
 
   // Force-stop any in-flight recognition so the browser releases the mic.
   // iOS Safari can ignore a single abort(), so we detach handlers and call
@@ -157,13 +93,7 @@ APP.speech = (function () {
       function finalizeWithHeard() {
         var text = recognizedSoFar.trim();
         if (!text) { finish(reject, new Error('no-speech')); return; }
-        var result = compareWords(targetText, text);
-        // Only clear the warmup flag when the transcript is a plausible match
-        // for what the user was asked to say. A wildly wrong "heard" (e.g.
-        // TTS echo, garbage words) means the audio route is still stale and
-        // the next attempt must re-prime.
-        if (result.status === 'ok') { needsWarmup = false; }
-        finish(resolve, result);
+        finish(resolve, compareWords(targetText, text));
       }
 
       // Reset every time new speech comes in — user is only "done" once this
@@ -264,14 +194,7 @@ APP.speech = (function () {
         startAttempt();
       }
 
-      if (needsWarmup) {
-        // Don't clear the flag yet — only finalizeWithHeard() on a real
-        // success does, so we keep priming every attempt until one works.
-        dbg('priming stale audio session…');
-        primeMic().then(begin);
-      } else {
-        begin();
-      }
+      begin();
     });
   }
 
