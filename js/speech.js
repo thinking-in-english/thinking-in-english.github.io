@@ -22,6 +22,10 @@ APP.speech = (function () {
 
   function isSupported() { return supported; }
 
+  /** Mark the audio session as possibly needing a reset before the next
+   * checkSpeech() attempt (kept true across attempts until one succeeds). */
+  function markNeedsWarmup() { needsWarmup = true; }
+
   /**
    * Called by app.js when the tab regains visibility, with how long it was
    * hidden. A long hide (screen lock, app switch) marks the audio session as
@@ -29,7 +33,7 @@ APP.speech = (function () {
    * recognition with real matched words succeeds.
    */
   function notifyReturnedFromBackground(hiddenMs) {
-    if (hiddenMs > 8000) { needsWarmup = true; }
+    if (hiddenMs > 8000) { markNeedsWarmup(); }
   }
 
   /**
@@ -341,6 +345,7 @@ APP.speech = (function () {
     checkSpeech: checkSpeech,
     compareWords: compareWords,
     abort: abort,
-    notifyReturnedFromBackground: notifyReturnedFromBackground
+    notifyReturnedFromBackground: notifyReturnedFromBackground,
+    markNeedsWarmup: markNeedsWarmup
   };
 })();

@@ -163,6 +163,13 @@ APP.tts = (function () {
     if (!text) { return false; }
     options = options || {};
 
+    // Playing audio switches iOS Safari's audio session to "playback" mode.
+    // The next Speak & Check needs "record" mode, and that transition isn't
+    // always clean — so mark the mic as needing a re-prime beforehand.
+    try {
+      if (APP.speech && APP.speech.markNeedsWarmup) { APP.speech.markNeedsWarmup(); }
+    } catch (e) {}
+
     // If the user has configured Google Cloud TTS, prefer it — much more
     // natural than the built-in browser voices on iOS.
     if (options.googleApiKey && options.googleVoice) {
