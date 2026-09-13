@@ -39,91 +39,114 @@ APP.speech = (function () {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
-      // Total time the user is allowed to take before we give up — covers
-      // reading a long Vietnamese prompt before they start speaking. The
-      // browser's own recognizer gives up after a few seconds of silence,
-      // so we silently restart it underneath until this budget runs out.
-      var TOTAL_BUDGET_MS = 20000;
+      // We implement our own "voice activity detection" instead of relying on
+      // the browser's built-in end-of-speech guess (which is short, fixed,
+      // and unreliable on iOS Safari). This lets short answers finish quickly
+      // and long ones (or a long prompt read before answering) get more time.
+      var SILENCE_MS = 2500;        // pause this long after last speech = done talking
+      var START_GRACE_MS = 20000;   // time allowed to start talking (reading time)
+      var HARD_CAP_MS = 30000;      // absolute safety net so mic never lingers
+
+      var settled = false;
+      var hasSpeech = false;
+      var recognizedSoFar = '';
+      var silenceTimer = null;
+      var hardCapTimer = null;
       var firstStartedAt = Date.now();
+      var currentRecog = null;
 
-      function startRecog() {
-        var recog = new SR();
-        recog.lang = APP.config.accentLang[accent] || 'en-US';
-        recog.interimResults = false;
-        // Ask for more guesses so we can pick the one that best matches the target.
-        recog.maxAlternatives = 5;
+      function clearTimers() {
+        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+        if (hardCapTimer) { clearTimeout(hardCapTimer); hardCapTimer = null; }
+      }
 
-        var settled = false;
-        var watchdog = null;
-
-        function done(fn, arg) {
-          if (settled) { return; }
-          settled = true;
-          if (watchdog) { clearTimeout(watchdog); watchdog = null; }
-          // Release the mic immediately — like tapping Stop in a recorder app —
-          // instead of waiting for iOS to end the session on its own.
-          if (activeRecog === recog) { activeRecog = null; }
+      function finish(fn, arg) {
+        if (settled) { return; }
+        settled = true;
+        clearTimers();
+        if (activeRecog === currentRecog) { activeRecog = null; }
+        var recog = currentRecog;
+        if (recog) {
           try { recog.onresult = null; } catch (e) {}
           try { recog.onerror = null; } catch (e) {}
           try { recog.onend = null; } catch (e) {}
           try { recog.stop(); } catch (e) {}
           try { recog.abort(); } catch (e) {}
-          fn(arg);
         }
+        fn(arg);
+      }
 
-        // Silently restart (no result yet, still within budget) instead of
-        // reporting failure — keeps "Listening…" up while giving the user
-        // more time to read + start speaking.
-        function retryOrFail(err) {
-          if (settled) { return; }
-          if (Date.now() - firstStartedAt < TOTAL_BUDGET_MS) {
-            settled = true;
-            if (watchdog) { clearTimeout(watchdog); watchdog = null; }
-            if (activeRecog === recog) { activeRecog = null; }
-            try { recog.abort(); } catch (e) {}
-            setTimeout(startRecog, 400);
-            return;
-          }
-          done(reject, err);
-        }
+      function finalizeWithHeard() {
+        var text = recognizedSoFar.trim();
+        if (!text) { finish(reject, new Error('no-speech')); return; }
+        finish(resolve, compareWords(targetText, text));
+      }
+
+      // Reset every time new speech comes in — user is only "done" once this
+      // much silence follows their last word.
+      function scheduleSilenceCheck() {
+        if (silenceTimer) { clearTimeout(silenceTimer); }
+        silenceTimer = setTimeout(finalizeWithHeard, SILENCE_MS);
+      }
+
+      function startAttempt() {
+        var recog = new SR();
+        currentRecog = recog;
+        recog.lang = APP.config.accentLang[accent] || 'en-US';
+        // Interim results let us see speech as it happens so we can run our
+        // own silence timer; continuous keeps the session alive across
+        // natural pauses instead of the browser ending it after the first one.
+        recog.interimResults = true;
+        recog.continuous = true;
+        recog.maxAlternatives = 1;
 
         recog.onresult = function (event) {
-          var alts = event.results[0];
-          var best = null;
-          for (var i = 0; i < alts.length; i++) {
-            var r = compareWords(targetText, alts[i].transcript);
-            if (!best || r.matchedCount > best.matchedCount ||
-                (r.matchedCount === best.matchedCount && r.status === 'ok')) {
-              best = r;
-            }
+          hasSpeech = true;
+          var parts = [];
+          for (var i = 0; i < event.results.length; i++) {
+            parts.push(event.results[i][0].transcript);
           }
-          done(resolve, best);
+          recognizedSoFar = parts.join(' ');
+          scheduleSilenceCheck();
         };
+
         recog.onerror = function (event) {
+          if (settled) { return; }
           var code = event.error || 'speech-error';
-          // 'no-speech' just means the browser's silence timer ran out before
-          // the user spoke — not a real failure, so retry within budget.
-          if (code === 'no-speech') { retryOrFail(new Error(code)); return; }
-          done(reject, new Error(code));
+          // Explicit abort (e.g. app backgrounded) — stop for good, no retry.
+          if (code === 'aborted') { finish(reject, new Error(code)); return; }
+          if (hasSpeech) { finalizeWithHeard(); return; }
+          if (code !== 'no-speech') { finish(reject, new Error(code)); return; }
+          // 'no-speech' with nothing captured yet — let onend decide whether
+          // to retry (still within the reading-time grace window).
         };
+
         recog.onend = function () {
-          retryOrFail(new Error('no-speech'));
+          if (settled) { return; }
+          if (hasSpeech) { finalizeWithHeard(); return; }
+          // Hasn't started talking yet — likely still reading the prompt.
+          // Restart a fresh session if there's still grace time left.
+          if (Date.now() - firstStartedAt < START_GRACE_MS) {
+            setTimeout(startAttempt, 300);
+            return;
+          }
+          finish(reject, new Error('no-speech'));
         };
 
         try {
           activeRecog = recog;
           recog.start();
-          // Per-attempt safety net in case the engine never fires any event.
-          watchdog = setTimeout(function () {
-            retryOrFail(new Error('no-speech'));
-          }, 8000);
         } catch (e) {
-          activeRecog = null;
-          done(reject, e);
+          finish(reject, e);
         }
       }
 
-      startRecog();
+      hardCapTimer = setTimeout(function () {
+        if (hasSpeech) { finalizeWithHeard(); }
+        else { finish(reject, new Error('no-speech')); }
+      }, HARD_CAP_MS);
+
+      startAttempt();
     });
   }
 
