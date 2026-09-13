@@ -12,8 +12,48 @@ APP.speech = (function () {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var supported = !!SR;
   var activeRecog = null;
+  // iOS Safari's speech audio session can go stale after the page has been
+  // backgrounded for a while (e.g. phone locked) — recognition afterwards
+  // sometimes throws 'audio-capture' or, worse, silently "hears" garbage
+  // single words unrelated to what was said. A short priming session before
+  // the real one tends to reset this. See notifyReturnedFromBackground().
+  var needsWarmup = false;
 
   function isSupported() { return supported; }
+
+  /**
+   * Called by app.js when the tab regains visibility, with how long it was
+   * hidden. A long hide (screen lock, app switch) marks the audio session as
+   * possibly stale so the next checkSpeech() primes it first.
+   */
+  function notifyReturnedFromBackground(hiddenMs) {
+    if (hiddenMs > 8000) { needsWarmup = true; }
+  }
+
+  /**
+   * Quick throwaway recognition session (start, then abort almost
+   * immediately) used only to make WebKit re-establish a fresh audio route
+   * before the real attempt. Never rejects — best effort only.
+   */
+  function primeMic() {
+    return new Promise(function (resolve) {
+      if (!supported) { resolve(); return; }
+      var done = false;
+      function finishPriming() { if (done) { return; } done = true; resolve(); }
+      try {
+        var recog = new SR();
+        recog.onend = finishPriming;
+        recog.onerror = finishPriming;
+        recog.start();
+        setTimeout(function () {
+          try { recog.abort(); } catch (e) {}
+          setTimeout(finishPriming, 150);
+        }, 250);
+      } catch (e) {
+        finishPriming();
+      }
+    });
+  }
 
   // Force-stop any in-flight recognition so the browser releases the mic.
   // iOS Safari can ignore a single abort(), so we detach handlers and call
@@ -52,7 +92,7 @@ APP.speech = (function () {
       var recognizedSoFar = '';
       var silenceTimer = null;
       var hardCapTimer = null;
-      var firstStartedAt = Date.now();
+      var firstStartedAt = 0;
       var currentRecog = null;
 
       function clearTimers() {
@@ -141,12 +181,21 @@ APP.speech = (function () {
         }
       }
 
-      hardCapTimer = setTimeout(function () {
-        if (hasSpeech) { finalizeWithHeard(); }
-        else { finish(reject, new Error('no-speech')); }
-      }, HARD_CAP_MS);
+      function begin() {
+        firstStartedAt = Date.now();
+        hardCapTimer = setTimeout(function () {
+          if (hasSpeech) { finalizeWithHeard(); }
+          else { finish(reject, new Error('no-speech')); }
+        }, HARD_CAP_MS);
+        startAttempt();
+      }
 
-      startAttempt();
+      if (needsWarmup) {
+        needsWarmup = false;
+        primeMic().then(begin);
+      } else {
+        begin();
+      }
     });
   }
 
@@ -224,6 +273,7 @@ APP.speech = (function () {
     isSupported: isSupported,
     checkSpeech: checkSpeech,
     compareWords: compareWords,
-    abort: abort
+    abort: abort,
+    notifyReturnedFromBackground: notifyReturnedFromBackground
   };
 })();

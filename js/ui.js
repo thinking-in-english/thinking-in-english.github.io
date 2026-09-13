@@ -616,7 +616,7 @@ APP.ui = (function () {
       return 'Google Apps Script iframes block microphone access. See tip below or use Show Answer instead.';
     }
     if (code === 'audio-capture') {
-      return 'Please connect a microphone and reload the app.';
+      return 'This can happen after your phone was locked for a while. Try again — if it keeps happening, reload the app.';
     }
     if (code === 'network') {
       return 'Speech recognition needs internet. Check your connection and try again.';

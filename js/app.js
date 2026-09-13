@@ -86,8 +86,19 @@
     });
 
     // Release the mic (recorder + speech) only when the app is backgrounded.
+    // Track how long it was hidden — after a long hide (screen lock) iOS
+    // Safari's speech audio session can go stale, so we warn speech.js to
+    // prime it before the next Speak & Check attempt.
+    var hiddenAt = 0;
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) { releaseMic(); }
+      if (document.hidden) {
+        hiddenAt = Date.now();
+        releaseMic();
+      } else if (hiddenAt) {
+        var hiddenMs = Date.now() - hiddenAt;
+        hiddenAt = 0;
+        try { APP.speech.notifyReturnedFromBackground(hiddenMs); } catch (e) {}
+      }
     });
     window.addEventListener('pagehide', function () { releaseMic(); });
   }
