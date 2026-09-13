@@ -588,17 +588,6 @@ APP.ui = (function () {
     // otherwise the mic can pick up the tail of that audio as an echo and
     // the recognizer "hears" fragments of the answer instead of the user.
     APP.tts.stopSpeech();
-    // Re-assert the play-and-record audio session hint in case the TTS
-    // playback switched it back to playback-only.
-    onDebug('navigator.audioSession ' + (navigator.audioSession ? 'SUPPORTED' : 'not supported'));
-    try {
-      if (navigator.audioSession) {
-        navigator.audioSession.type = 'play-and-record';
-        onDebug('audioSession.type set to play-and-record (now: ' + navigator.audioSession.type + ')');
-      }
-    } catch (e) {
-      onDebug('audioSession.type threw: ' + e.message);
-    }
 
     var btn = document.getElementById('speakCheckBtn');
     var box = document.getElementById('preCheckResult');
