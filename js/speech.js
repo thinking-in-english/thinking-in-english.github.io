@@ -38,38 +38,10 @@ APP.speech = (function () {
     } catch (e) {}
   }
 
-  // Force a proper record configuration only for the duration of a Speak &
-  // Check. After the page itself has played audio (Google TTS), iOS keeps
-  // the mic in a degraded state (words dropped/misheard) until Safari is
-  // killed — explicitly switching to 'play-and-record' makes it reconfigure
-  // capture. We restore 'auto' afterwards because leaving 'play-and-record'
-  // on routes TTS playback to the earpiece.
-  var recordSessionActive = false;
-
-  function audioSessionType() {
-    try { return navigator.audioSession ? navigator.audioSession.type : 'n/a'; } catch (e) { return 'err'; }
-  }
-
-  function enterRecordSession() {
-    try {
-      if (navigator.audioSession) {
-        navigator.audioSession.type = 'play-and-record';
-        recordSessionActive = true;
-      }
-    } catch (e) {}
-  }
-
-  function exitRecordSession() {
-    if (!recordSessionActive) { return; }
-    recordSessionActive = false;
-    try { navigator.audioSession.type = 'auto'; } catch (e) {}
-  }
-
   // Force-stop any in-flight recognition so the browser releases the mic.
   // iOS Safari can ignore a single abort(), so we detach handlers and call
   // both stop() and abort().
   function abort() {
-    exitRecordSession();
     if (!activeRecog) { return; }
     var r = activeRecog;
     activeRecog = null;
@@ -132,7 +104,6 @@ APP.speech = (function () {
           try { recog.stop(); } catch (e) {}
           try { recog.abort(); } catch (e) {}
         }
-        exitRecordSession();
         fn(arg);
       }
 
@@ -153,7 +124,7 @@ APP.speech = (function () {
         var recog = new SR();
         currentRecog = recog;
         recog.lang = APP.config.accentLang[accent] || 'en-US';
-        dbg('start lang=' + recog.lang + ' session=' + audioSessionType());
+        dbg('start lang=' + recog.lang);
         // Interim results let us see speech as it happens so we can run our
         // own silence timer; continuous keeps the session alive across
         // natural pauses instead of the browser ending it after the first one.
@@ -321,7 +292,6 @@ APP.speech = (function () {
     abort: abort,
     notifyReturnedFromBackground: notifyReturnedFromBackground,
     markNeedsWarmup: markNeedsWarmup,
-    resetAudioRoute: resetAudioRoute,
-    enterRecordSession: enterRecordSession
+    resetAudioRoute: resetAudioRoute
   };
 })();
