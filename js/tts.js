@@ -252,58 +252,21 @@ APP.tts = (function () {
     return null;
   }
 
-  // Playback goes through Web Audio, NOT an <audio> element: on iOS Safari,
-  // playing an <audio> element leaves the page's audio session in a state
-  // that degrades SpeechRecognition (words dropped/misheard) until Safari is
-  // fully closed — even a page reload doesn't clear it. A fresh AudioContext
-  // per utterance, closed as soon as playback ends or is stopped, avoids
-  // leaving a media player alive.
-  var AC = window.AudioContext || window.webkitAudioContext;
-
   var googleAudioCache = {}; // key -> base64 MP3
-  var googleAudio = null;    // fallback <audio> element (no Web Audio)
-  var googleCtx = null;      // AudioContext for the current utterance
-  var googleSource = null;   // AudioBufferSourceNode currently playing
+  var googleAudio = null;    // currently playing HTMLAudioElement
 
   var googlePlayToken = 0;   // bumped on every stop so late fetches don't play
 
-  function closeGoogleCtx() {
-    if (googleSource) {
-      try { googleSource.onended = null; } catch (e) {}
-      try { googleSource.stop(); } catch (e) {}
-      googleSource = null;
-    }
-    if (googleCtx) {
-      var ctx = googleCtx;
-      googleCtx = null;
-      try { if (ctx.close) { ctx.close(); } } catch (e) {}
-    }
-  }
-
+  // Only pause — do NOT unload (removeAttribute('src') + load()). On iOS,
+  // tearing down the last media element deactivates the page's audio session,
+  // and if that lands while SpeechRecognition opens the mic it fails with
+  // 'audio-capture' ("No microphone found").
   function stopGoogle() {
     googlePlayToken++;
-    closeGoogleCtx();
     if (googleAudio) {
       try { googleAudio.pause(); } catch (e) {}
       googleAudio = null;
     }
-  }
-
-  function base64ToArrayBuffer(b64) {
-    var bin = atob(b64);
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
-    return bytes.buffer;
-  }
-
-  // Callback form — older iOS Safari doesn't return a Promise.
-  function decodeAudio(ctx, arrayBuffer) {
-    return new Promise(function (resolve, reject) {
-      var p = ctx.decodeAudioData(arrayBuffer, resolve, function (err) {
-        reject(err || new Error('decode-failed'));
-      });
-      if (p && p.catch) { p.catch(function () {}); }
-    });
   }
 
   function googleSpeak(text, options) {
@@ -323,40 +286,11 @@ APP.tts = (function () {
     stopSpeech();
     var token = googlePlayToken;
 
-    // Create + resume the context synchronously, while still inside the tap
-    // handler, so iOS allows it to produce sound once the fetch resolves.
-    var ctx = null;
-    if (AC) {
-      try {
-        ctx = new AC();
-        if (ctx.resume) { ctx.resume(); }
-        googleCtx = ctx;
-      } catch (e) { ctx = null; }
-    }
-
     return b64Promise.then(function (b64) {
       // Stopped (Back / Next / Speak & Check) while fetching — don't play.
       if (token !== googlePlayToken) { return; }
-
-      if (!ctx) {
-        googleAudio = new Audio('data:audio/mp3;base64,' + b64);
-        return googleAudio.play();
-      }
-
-      return decodeAudio(ctx, base64ToArrayBuffer(b64)).then(function (buffer) {
-        if (token !== googlePlayToken) { return; }
-        var src = ctx.createBufferSource();
-        src.buffer = buffer;
-        src.connect(ctx.destination);
-        src.onended = function () {
-          if (googleSource === src) { closeGoogleCtx(); }
-        };
-        googleSource = src;
-        src.start(0);
-      });
-    }).catch(function (err) {
-      if (googleCtx === ctx) { closeGoogleCtx(); }
-      throw err;
+      googleAudio = new Audio('data:audio/mp3;base64,' + b64);
+      return googleAudio.play();
     });
   }
 

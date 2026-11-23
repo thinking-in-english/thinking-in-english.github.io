@@ -599,6 +599,9 @@ APP.ui = (function () {
     // otherwise the mic can pick up the tail of that audio as an echo and
     // the recognizer "hears" fragments of the answer instead of the user.
     APP.tts.stopSpeech();
+    // Switch to an explicit record session now, so it has the 500ms below
+    // to settle before recognition starts. Restored when checkSpeech ends.
+    if (APP.speech.enterRecordSession) { APP.speech.enterRecordSession(); }
 
     var btn = document.getElementById('speakCheckBtn');
     var box = document.getElementById('preCheckResult');
