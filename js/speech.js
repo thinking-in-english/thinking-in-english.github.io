@@ -21,30 +21,14 @@ APP.speech = (function () {
   function markNeedsWarmup() {}
   function notifyReturnedFromBackground() {}
 
-  /**
-   * Reset the audio route by briefly opening then closing the raw mic.
-   * IMPORTANT: this must run at NAVIGATION time (Back-to-question / Next),
-   * NOT right before recognition — running getUserMedia adjacent to
-   * SpeechRecognition makes them compete for the mic and wrecks accuracy.
-   * Called seconds before the user taps Speak & Check, it just nudges iOS
-   * out of the "playback" audio route left behind by a preceding Listen/TTS.
-   */
-  function resetAudioRoute() {
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { return; }
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-        stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
-      }).catch(function () {});
-    } catch (e) {}
-  }
-
   // Keep a getUserMedia stream open for the WHOLE recognition (iOS/iPadOS).
   // WebKit bug 317741 — the speech-recognition mic source doesn't keep the
   // audio session active by itself, so after the page has played audio
   // (Google TTS) iOS captures in a degraded session (words dropped/misheard)
   // until Safari is killed. A live getUserMedia capture does keep the session
-  // active. Opening then closing the mic (old priming / resetAudioRoute)
-  // can't help: the close is what deactivates the session again.
+  // active. Never open-then-close the mic around recognition (old priming /
+  // "reset route" tricks): the close deactivates the session again, and if it
+  // lands while recognition starts it fails with 'audio-capture'.
   // Off elsewhere: Android/desktop don't have the bug, and a parallel capture
   // could contend with the recognizer. Override with ?holdmic=1 / ?holdmic=0.
   function isIOS() {
@@ -128,6 +112,8 @@ APP.speech = (function () {
       var hardCapTimer = null;
       var firstStartedAt = 0;
       var currentRecog = null;
+      var captureRetried = false;
+      var gen = abortGen;
 
       function clearTimers() {
         if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
@@ -207,6 +193,20 @@ APP.speech = (function () {
           dbg('error: ' + code);
           // Explicit abort (e.g. app backgrounded) — stop for good, no retry.
           if (code === 'aborted') { finish(reject, new Error(code)); return; }
+          // Mic grabbed from under us (e.g. the audio session flipped while
+          // recognition was starting) — reopen the mic and retry once.
+          if (code === 'audio-capture' && !hasSpeech && !captureRetried) {
+            captureRetried = true;
+            dbg('audio-capture → reopen mic + retry once');
+            try { recog.onresult = null; recog.onerror = null; recog.onend = null; } catch (e) {}
+            try { recog.abort(); } catch (e) {}
+            setTimeout(function () {
+              if (settled) { return; }
+              if (HOLD_MIC) { releaseHeldMic(); acquireMicThen(startAttempt); }
+              else { startAttempt(); }
+            }, 300);
+            return;
+          }
           var fatal = (code === 'not-allowed' || code === 'service-not-allowed' ||
                        code === 'network' || code === 'audio-capture');
           if (hasSpeech) {
@@ -271,7 +271,28 @@ APP.speech = (function () {
       // so the mic doesn't catch its tail. With a held mic, opening it
       // (~1s on iOS) already covers that.
       var SETTLE_MS = 500;
-      var gen = abortGen;
+
+      // Open the held mic, then run next(). Falls back to plain recognition
+      // if getUserMedia fails; rejects with 'aborted' if abort() ran meanwhile.
+      function acquireMicThen(next) {
+        dbg('holdmic=on: opening mic');
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+          if (settled || gen !== abortGen) {
+            stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+            finish(reject, new Error('aborted'));
+            return;
+          }
+          heldStream = stream;
+          var track = stream.getAudioTracks()[0];
+          dbg('holdmic: mic live (' + (track ? track.readyState : 'no track') + ')');
+          next();
+        }).catch(function (err) {
+          dbg('holdmic: getUserMedia failed (' + ((err && err.name) || err) + ') → normal');
+          if (settled) { return; }
+          if (gen !== abortGen) { finish(reject, new Error('aborted')); return; }
+          next();
+        });
+      }
 
       if (!HOLD_MIC || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         dbg('holdmic=off');
@@ -283,24 +304,8 @@ APP.speech = (function () {
         return;
       }
 
-      dbg('holdmic=on: opening mic');
       releaseHeldMic();
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-        if (settled || gen !== abortGen) {
-          stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
-          finish(reject, new Error('aborted'));
-          return;
-        }
-        heldStream = stream;
-        var track = stream.getAudioTracks()[0];
-        dbg('holdmic: mic live (' + (track ? track.readyState : 'no track') + ')');
-        begin();
-      }).catch(function (err) {
-        dbg('holdmic: getUserMedia failed (' + ((err && err.name) || err) + ') → normal');
-        if (settled) { return; }
-        if (gen !== abortGen) { finish(reject, new Error('aborted')); return; }
-        begin();
-      });
+      acquireMicThen(begin);
     });
   }
 
@@ -380,7 +385,6 @@ APP.speech = (function () {
     compareWords: compareWords,
     abort: abort,
     notifyReturnedFromBackground: notifyReturnedFromBackground,
-    markNeedsWarmup: markNeedsWarmup,
-    resetAudioRoute: resetAudioRoute
+    markNeedsWarmup: markNeedsWarmup
   };
 })();

@@ -384,9 +384,6 @@ APP.ui = (function () {
     // one, otherwise it keeps playing while the new question loads and can
     // still be echoing into the mic when Speak & Check starts.
     APP.tts.stopSpeech();
-    // Reset the audio route NOW (well before the user reaches Speak & Check)
-    // to clear the playback mode a preceding Listen left behind.
-    if (APP.speech && APP.speech.resetAudioRoute) { APP.speech.resetAudioRoute(); }
     if (isLastQuestion()) {
       completeSession();
       return;
@@ -448,10 +445,6 @@ APP.ui = (function () {
     if (!s) { return; }
     APP.tts.stopSpeech();
     APP.recorder.cleanup();
-    // The Listen just heard on the answer page put the audio session into
-    // playback mode; reset the route now (well before Speak & Check) so the
-    // recognizer starts from a clean record route.
-    if (APP.speech && APP.speech.resetAudioRoute) { APP.speech.resetAudioRoute(); }
     s.revealed = false;
     document.getElementById('answerBlock').hidden = true;
     document.getElementById('preCheckBlock').hidden = false;
@@ -581,18 +574,8 @@ APP.ui = (function () {
       return;
     }
 
-    // TEMP debug trace so we can see exactly what the recognizer is doing on
-    // the user's device — remove once the accuracy issue is diagnosed.
-    var debugStartedAt = Date.now();
-    var debugLines = [];
     function onDebug(msg) {
-      debugLines.push((Date.now() - debugStartedAt) + 'ms: ' + msg);
-      renderDebugLog();
-    }
-    function renderDebugLog() {
-      var el = document.getElementById('speechDebugLog');
-      if (!el) { return; }
-      el.textContent = debugLines.join('\n');
+      try { console.debug('[speech]', msg); } catch (e) {}
     }
 
     // Make sure any TTS playback (Listen, voice preview) is fully stopped —
@@ -610,8 +593,6 @@ APP.ui = (function () {
     // (opening the mic takes ~1s on iOS) — words said earlier are lost.
     box.innerHTML = '<div class="sr-prompt">⏳ Getting the microphone ready…</div>';
     var prompt = box.querySelector('.sr-prompt');
-    ensureDebugLogEl(box);
-    renderDebugLog();
 
     function onReady() {
       if (!prompt.isConnected) { return; }
@@ -628,7 +609,6 @@ APP.ui = (function () {
         } else {
           renderPreCheckFeedback(r);
         }
-        appendDebugLogAfterRender(debugLines);
       })
       .catch(function (err) {
         btn.disabled = false;
@@ -636,29 +616,7 @@ APP.ui = (function () {
         box.className = 'sr-result miss';
         box.innerHTML = '<div class="sr-head">' + speechErrorTitle(err) + '</div>' +
                         '<div>' + speechErrorHint(err) + '</div>';
-        appendDebugLogAfterRender(debugLines);
       });
-  }
-
-  // TEMP: on-screen debug trace helpers — remove once diagnosis is done.
-  function ensureDebugLogEl(box) {
-    var el = document.createElement('pre');
-    el.id = 'speechDebugLog';
-    el.style.cssText = 'margin-top:8px;padding:8px;background:#111;color:#0f0;' +
-      'font-size:10px;line-height:1.4;border-radius:6px;white-space:pre-wrap;' +
-      'word-break:break-word;max-height:160px;overflow:auto;';
-    box.appendChild(el);
-  }
-  function appendDebugLogAfterRender(lines) {
-    var box = document.getElementById('preCheckResult');
-    if (!box) { return; }
-    var el = document.createElement('pre');
-    el.id = 'speechDebugLog';
-    el.style.cssText = 'margin-top:8px;padding:8px;background:#111;color:#0f0;' +
-      'font-size:10px;line-height:1.4;border-radius:6px;white-space:pre-wrap;' +
-      'word-break:break-word;max-height:160px;overflow:auto;';
-    el.textContent = lines.join('\n');
-    box.appendChild(el);
   }
 
   function speechErrorTitle(err) {
