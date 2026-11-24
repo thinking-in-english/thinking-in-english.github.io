@@ -84,15 +84,30 @@ APP.speech = (function () {
    * Listen once and compare against the target sentence.
    * @param {string} targetText Expected English sentence.
    * @param {string} accent 'US' | 'UK' — selects recognition language.
+   * @param {function(string)} [onDebug] debug trace sink.
+   * @param {function()} [onReady] called once, when the recognizer is
+   *     actually capturing audio — only then should the user start speaking.
    * @return {Promise<Object>} comparison result (see below) or rejects.
    */
-  function checkSpeech(targetText, accent, onDebug) {
+  function checkSpeech(targetText, accent, onDebug, onReady) {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
       function dbg(msg) {
         if (typeof onDebug === 'function') {
           try { onDebug(msg); } catch (e) {}
+        }
+      }
+
+      var readyFired = false;
+      var readyFallbackTimer = null;
+      function fireReady(why) {
+        if (readyFired || settled) { return; }
+        readyFired = true;
+        if (readyFallbackTimer) { clearTimeout(readyFallbackTimer); readyFallbackTimer = null; }
+        dbg('ready (' + why + ')');
+        if (typeof onReady === 'function') {
+          try { onReady(); } catch (e) {}
         }
       }
 
@@ -160,6 +175,18 @@ APP.speech = (function () {
         recog.interimResults = true;
         recog.continuous = true;
         recog.maxAlternatives = 1;
+
+        // 'audiostart' = capture really began. 'start' can come a bit
+        // earlier, so it only arms a short fallback for engines that never
+        // fire 'audiostart'.
+        recog.onaudiostart = function () { fireReady('audiostart'); };
+        recog.onstart = function () {
+          if (readyFired || readyFallbackTimer) { return; }
+          readyFallbackTimer = setTimeout(function () {
+            readyFallbackTimer = null;
+            fireReady('start+fallback');
+          }, 400);
+        };
 
         recog.onresult = function (event) {
           hasSpeech = true;
@@ -240,15 +267,24 @@ APP.speech = (function () {
         startAttempt();
       }
 
+      // Without a held mic, give a just-stopped Listen/TTS a moment to settle
+      // so the mic doesn't catch its tail. With a held mic, opening it
+      // (~1s on iOS) already covers that.
+      var SETTLE_MS = 500;
+      var gen = abortGen;
+
       if (!HOLD_MIC || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         dbg('holdmic=off');
-        begin();
+        setTimeout(function () {
+          if (settled) { return; }
+          if (gen !== abortGen) { finish(reject, new Error('aborted')); return; }
+          begin();
+        }, SETTLE_MS);
         return;
       }
 
       dbg('holdmic=on: opening mic');
       releaseHeldMic();
-      var gen = abortGen;
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
         if (settled || gen !== abortGen) {
           stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });

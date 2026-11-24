@@ -603,37 +603,41 @@ APP.ui = (function () {
     var btn = document.getElementById('speakCheckBtn');
     var box = document.getElementById('preCheckResult');
     btn.disabled = true;
-    btn.textContent = '🎧 Listening…';
+    btn.textContent = '⏳ Preparing…';
     box.hidden = false;
     box.className = 'sr-result';
-    box.innerHTML = 'Speak the English sentence now.';
+    // Don't tell the user to speak until the recognizer is actually capturing
+    // (opening the mic takes ~1s on iOS) — words said earlier are lost.
+    box.innerHTML = '<div class="sr-prompt">⏳ Getting the microphone ready…</div>';
+    var prompt = box.querySelector('.sr-prompt');
     ensureDebugLogEl(box);
     renderDebugLog();
 
-    // Delay after stopping any TTS so the audio route fully settles into
-    // "record" mode before we start listening — helps avoid echo. Longer
-    // than a single frame because iOS's category switch isn't instant.
-    setTimeout(function () {
-      APP.speech.checkSpeech(q.english, APP.state.settings.accent, onDebug)
-        .then(function (r) {
-          btn.disabled = false;
-          btn.textContent = '🎤 Try Again';
-          if (r.status === 'ok') {
-            handlePreCheckCorrect(q, r);
-          } else {
-            renderPreCheckFeedback(r);
-          }
-          appendDebugLogAfterRender(debugLines);
-        })
-        .catch(function (err) {
-          btn.disabled = false;
-          btn.textContent = '🎤 Try Again';
-          box.className = 'sr-result miss';
-          box.innerHTML = '<div class="sr-head">' + speechErrorTitle(err) + '</div>' +
-                          '<div>' + speechErrorHint(err) + '</div>';
-          appendDebugLogAfterRender(debugLines);
-        });
-    }, 500);
+    function onReady() {
+      if (!prompt.isConnected) { return; }
+      prompt.textContent = '🎙️ Speak the English sentence now.';
+      btn.textContent = '🎧 Listening…';
+    }
+
+    APP.speech.checkSpeech(q.english, APP.state.settings.accent, onDebug, onReady)
+      .then(function (r) {
+        btn.disabled = false;
+        btn.textContent = '🎤 Try Again';
+        if (r.status === 'ok') {
+          handlePreCheckCorrect(q, r);
+        } else {
+          renderPreCheckFeedback(r);
+        }
+        appendDebugLogAfterRender(debugLines);
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = '🎤 Try Again';
+        box.className = 'sr-result miss';
+        box.innerHTML = '<div class="sr-head">' + speechErrorTitle(err) + '</div>' +
+                        '<div>' + speechErrorHint(err) + '</div>';
+        appendDebugLogAfterRender(debugLines);
+      });
   }
 
   // TEMP: on-screen debug trace helpers — remove once diagnosis is done.
