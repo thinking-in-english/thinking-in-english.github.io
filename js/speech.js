@@ -38,10 +38,30 @@ APP.speech = (function () {
     } catch (e) {}
   }
 
+  // EXPERIMENT (enable with ?holdmic=1): keep a getUserMedia stream open for
+  // the WHOLE recognition. WebKit bug 317741 — the speech-recognition mic
+  // source doesn't keep the audio session active by itself, so after the page
+  // has played audio (Google TTS) iOS captures in a degraded session. A live
+  // getUserMedia capture does keep the session active. Opening then closing
+  // the mic (old priming / resetAudioRoute) can't help: the close is what
+  // deactivates the session again.
+  var HOLD_MIC = /[?&]holdmic=1\b/.test(window.location.search);
+  var heldStream = null;
+  var abortGen = 0; // bumped by abort() so a pending getUserMedia won't start recognition
+
+  function releaseHeldMic() {
+    if (!heldStream) { return; }
+    var s = heldStream;
+    heldStream = null;
+    s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+  }
+
   // Force-stop any in-flight recognition so the browser releases the mic.
   // iOS Safari can ignore a single abort(), so we detach handlers and call
   // both stop() and abort().
   function abort() {
+    abortGen++;
+    releaseHeldMic();
     if (!activeRecog) { return; }
     var r = activeRecog;
     activeRecog = null;
@@ -104,6 +124,7 @@ APP.speech = (function () {
           try { recog.stop(); } catch (e) {}
           try { recog.abort(); } catch (e) {}
         }
+        releaseHeldMic();
         fn(arg);
       }
 
@@ -211,7 +232,31 @@ APP.speech = (function () {
         startAttempt();
       }
 
-      begin();
+      if (!HOLD_MIC || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        dbg('holdmic=off');
+        begin();
+        return;
+      }
+
+      dbg('holdmic=on: opening mic');
+      releaseHeldMic();
+      var gen = abortGen;
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        if (settled || gen !== abortGen) {
+          stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+          finish(reject, new Error('aborted'));
+          return;
+        }
+        heldStream = stream;
+        var track = stream.getAudioTracks()[0];
+        dbg('holdmic: mic live (' + (track ? track.readyState : 'no track') + ')');
+        begin();
+      }).catch(function (err) {
+        dbg('holdmic: getUserMedia failed (' + ((err && err.name) || err) + ') → normal');
+        if (settled) { return; }
+        if (gen !== abortGen) { finish(reject, new Error('aborted')); return; }
+        begin();
+      });
     });
   }
 
