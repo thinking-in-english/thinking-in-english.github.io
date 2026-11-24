@@ -38,14 +38,22 @@ APP.speech = (function () {
     } catch (e) {}
   }
 
-  // EXPERIMENT (enable with ?holdmic=1): keep a getUserMedia stream open for
-  // the WHOLE recognition. WebKit bug 317741 — the speech-recognition mic
-  // source doesn't keep the audio session active by itself, so after the page
-  // has played audio (Google TTS) iOS captures in a degraded session. A live
-  // getUserMedia capture does keep the session active. Opening then closing
-  // the mic (old priming / resetAudioRoute) can't help: the close is what
-  // deactivates the session again.
-  var HOLD_MIC = /[?&]holdmic=1\b/.test(window.location.search);
+  // Keep a getUserMedia stream open for the WHOLE recognition (iOS/iPadOS).
+  // WebKit bug 317741 — the speech-recognition mic source doesn't keep the
+  // audio session active by itself, so after the page has played audio
+  // (Google TTS) iOS captures in a degraded session (words dropped/misheard)
+  // until Safari is killed. A live getUserMedia capture does keep the session
+  // active. Opening then closing the mic (old priming / resetAudioRoute)
+  // can't help: the close is what deactivates the session again.
+  // Off elsewhere: Android/desktop don't have the bug, and a parallel capture
+  // could contend with the recognizer. Override with ?holdmic=1 / ?holdmic=0.
+  function isIOS() {
+    var ua = navigator.userAgent || '';
+    return /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  var holdMicParam = /[?&]holdmic=([01])\b/.exec(window.location.search);
+  var HOLD_MIC = holdMicParam ? holdMicParam[1] === '1' : isIOS();
   var heldStream = null;
   var abortGen = 0; // bumped by abort() so a pending getUserMedia won't start recognition
 
