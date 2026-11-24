@@ -600,7 +600,34 @@ APP.ui = (function () {
       btn.textContent = '🎧 Listening…';
     }
 
-    APP.speech.checkSpeech(q.english, APP.state.settings.accent, onDebug, onReady)
+    // Live feedback while talking: show what's been heard, plus a bar that
+    // fills over the silence window — when it's full, the result appears.
+    // Each new word restarts it, so the user sees exactly why it's waiting.
+    var heardEl = null, waitEl = null, barEl = null;
+    function onHeard(text, silenceMs) {
+      if (!prompt.isConnected) { return; }
+      if (!heardEl) {
+        prompt.textContent = '🎙️ Listening… pause when you\'re done.';
+        heardEl = document.createElement('div');
+        heardEl.className = 'sr-live';
+        waitEl = document.createElement('div');
+        waitEl.className = 'sr-wait';
+        waitEl.innerHTML = '<div class="sr-wait-label">⏳ Checking when you pause…</div>' +
+          '<div class="sr-wait-track"><div class="sr-wait-bar"></div></div>';
+        barEl = waitEl.querySelector('.sr-wait-bar');
+        box.appendChild(heardEl);
+        box.appendChild(waitEl);
+      }
+      heardEl.textContent = '“' + text + '”';
+      // Restart the fill animation from 0.
+      barEl.style.transition = 'none';
+      barEl.style.width = '0%';
+      void barEl.offsetWidth;
+      barEl.style.transition = 'width ' + silenceMs + 'ms linear';
+      barEl.style.width = '100%';
+    }
+
+    APP.speech.checkSpeech(q.english, APP.state.settings.accent, onDebug, onReady, onHeard)
       .then(function (r) {
         btn.disabled = false;
         btn.textContent = '🎤 Try Again';

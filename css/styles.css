@@ -325,6 +325,14 @@ body {
 .sr-result.partial { background: #fef9c3; color: #854d0e; }
 .sr-result.miss { background: #fee2e2; color: #991b1b; }
 .sr-result .sr-head { font-weight: 700; font-size: 16px; }
+.sr-result .sr-live { margin-top: 8px; font-style: italic; font-weight: 600; }
+.sr-result .sr-wait { margin-top: 10px; }
+.sr-result .sr-wait-label { font-size: 13px; opacity: 0.75; }
+.sr-result .sr-wait-track {
+  margin: 6px auto 0; max-width: 220px; height: 6px; border-radius: 3px;
+  background: rgba(0, 0, 0, 0.08); overflow: hidden;
+}
+.sr-result .sr-wait-bar { height: 100%; width: 0%; background: #6366f1; border-radius: 3px; }
 
 .session-foot { padding-top: 8px; display: flex; flex-direction: column; gap: 10px; }
 

@@ -71,9 +71,11 @@ APP.speech = (function () {
    * @param {function(string)} [onDebug] debug trace sink.
    * @param {function()} [onReady] called once, when the recognizer is
    *     actually capturing audio — only then should the user start speaking.
+   * @param {function(string, number)} [onHeard] called on every interim
+   *     result with the text so far and how many ms of silence will end it.
    * @return {Promise<Object>} comparison result (see below) or rejects.
    */
-  function checkSpeech(targetText, accent, onDebug, onReady) {
+  function checkSpeech(targetText, accent, onDebug, onReady, onHeard) {
     return new Promise(function (resolve, reject) {
       if (!supported) { reject(new Error('unsupported')); return; }
 
@@ -185,6 +187,9 @@ APP.speech = (function () {
           recognizedSoFar = (priorText ? priorText + ' ' : '') + thisSessionText;
           dbg('result: "' + thisSessionText + '" → acc: "' + recognizedSoFar + '"');
           scheduleSilenceCheck();
+          if (typeof onHeard === 'function') {
+            try { onHeard(recognizedSoFar, SILENCE_MS); } catch (e) {}
+          }
         };
 
         recog.onerror = function (event) {
